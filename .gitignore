@@ -1,0 +1,21 @@
+# build artifacts
+build/
+dist/
+*.spec
+__pycache__/
+*.pyc
+
+# virtualenv
+.venv/
+venv/
+
+# IDE
+.idea/
+.vscode/
+
+# local previews / scratch
+shot*.png
+preview*.png
+*_crop.png
+*_strip.png
+*_zoom.png
