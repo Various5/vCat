@@ -181,6 +181,20 @@ HEAD_DOWN = [     # profile head lowered into bowl, 7 x 5
 ]
 
 
+def _rehead(orig, hx, hy, head=None):
+    """Replace a frame's 10x7 head region with the current HEAD, so these
+    poses pick up the polished face and each species' ears."""
+    head = head if head is not None else HEAD
+    g = [list(r) for r in orig]
+    for r in range(hy, hy + 7):
+        if 0 <= r < len(g):
+            for c in range(hx, hx + 10):
+                if 0 <= c < len(g[r]):
+                    g[r][c] = "."
+    _blit(g, head, hx, hy)
+    return _rows(g)
+
+
 def _frame_stand(legs, tail, head=None, bob=0):
     head = head if head is not None else HEAD
     g = _blank()
@@ -574,21 +588,21 @@ FRAMES = {
     "stand":     _frame_stand(LEGS_TOGETHER, TAIL_UP),
     "crouch1":   _frame_crouch(0),
     "crouch2":   _frame_crouch(1),
-    "pounce":    POUNCE,
+    "pounce":    _rehead(POUNCE, 15, 2),
     "bat1":      _frame_bat(0),
     "bat2":      _frame_bat(1),
     "scratch1":  _frame_scratch(0),
     "scratch2":  _frame_scratch(1),
     "sleep1":    SLEEP1,
     "sleep2":    SLEEP2,
-    "lie":       LIE,
+    "lie":       _rehead(LIE, 13, 5),
     "eat1":      _frame_eat(BOWL_FOOD, 0),
     "eat2":      _frame_eat(BOWL_FOOD, 1),
     "drink1":    _frame_eat(BOWL_WATER, 0),
     "drink2":    _frame_eat(BOWL_WATER, 1),
-    "dangle":    DANGLE,
-    "fall":      FALL,
-    "land":      LAND,
+    "dangle":    _rehead(DANGLE, 9, 1),
+    "fall":      _rehead(FALL, 9, 3),
+    "land":      _rehead(LAND, 13, 9, HEAD_BLINK),
     "tailchase1": _frame_tailchase(0),
     "tailchase2": _frame_tailchase(1),
     "stretch":   _frame_stretch(),
@@ -781,6 +795,39 @@ DECOR_ART = {
         "." + "c" + "G" * 12 + "c" + ".",
         "." * 2 + "c" * 12 + "." * 2,
     ],
+    "grass": [
+        "..v...v...v...v.",
+        ".vvv.vvv.vvv.vv.",
+        "vvvvvvvvvvvvvvvv",
+        "jjjjjjjjjjjjjjjj",
+    ],
+    "tree": [
+        "....vvvvvvvv....",
+        "..vvvvvvvvvvvv..",
+        ".vvvvvvvvvvvvvv.",
+        "vvvvvvjjvvvvvvvv",
+        "vvvvvvvvvvvvvvvv",
+        ".vvvvvvvvvvvvvv.",
+        "..vvvvvvvvvvvv..",
+        "...vvvvvvvvvv...",
+        ".....vvvvvv.....",
+        ".......nn.......",
+        ".......nn.......",
+        ".......nn.......",
+        "......nttn......",
+        "......nttn......",
+        ".....nnnnnn.....",
+        "....nnnnnnnn....",
+        "...nnnnnnnnnn...",
+        "..nnnnnnnnnnnn..",
+    ],
+    "pond": [
+        "....BBBBBBBBBBBB....",
+        "..BBBBBBBBBBBBBBBB..",
+        ".BBBBBcBBBBBBBcBBBB.",
+        "..BBBBBBBBBBBBBBBB..",
+        "....BBBBBBBBBBBB....",
+    ],
 }
 
 # label, what the cat does there, how many rows from the top are "solid"
@@ -793,6 +840,9 @@ DECOR_META = {
     "plant": {"label": "🪴  Potted plant",   "act": "plantbat"},
     "box":   {"label": "📦  Cardboard box",  "act": "boxhop"},
     "litter": {"label": "🚽  Litter box",    "act": "litter"},
+    "grass": {"label": "🌿  Grass patch",    "act": "scenery"},
+    "tree":  {"label": "🌳  Tree",           "act": "scenery"},
+    "pond":  {"label": "💧  Pond",           "act": "scenery"},
 }
 
 for _name, _f in DECOR_ART.items():
@@ -1103,6 +1153,11 @@ def species_frame_overrides(species):
             "tailchase1": _frame_tailchase(0), "tailchase2": _frame_tailchase(1),
             "stretch": _frame_stretch(),
             "flipoff1": _frame_flipoff(0), "flipoff2": _frame_flipoff(1),
+            "pounce": _rehead(POUNCE, 15, 2),
+            "lie": _rehead(LIE, 13, 5),
+            "dangle": _rehead(DANGLE, 9, 1),
+            "fall": _rehead(FALL, 9, 3),
+            "land": _rehead(LAND, 13, 9, HEAD_BLINK),
         }
         ov["climb1"] = _rot_ccw(ov["walk1"])
         ov["climb2"] = _rot_ccw(ov["walk3"])
@@ -1608,7 +1663,7 @@ def load_state():
             if isinstance(data.get(k), (int, float)) and not isinstance(data.get(k), bool):
                 state[k] = float(min(100, max(0, data[k])))
         s = data.get("scale")
-        if isinstance(s, int) and not isinstance(s, bool) and s in (2, 3, 4):
+        if isinstance(s, int) and not isinstance(s, bool) and s in (2, 3, 4, 6, 8):
             state["scale"] = s
         if data.get("color") in PALETTES:
             state["color"] = data["color"]
@@ -2412,7 +2467,7 @@ class Stork:
 
     def __init__(self, app, drop_x):
         self.app = app
-        s = self.scale = max(2, app.scale if app.scale >= 2 else 2)
+        s = self.scale = max(3, int(app.base_scale) + 1)   # readable on hi-res
         self.gw, self.gh = 16, 12
         self.win = _pet_window(app)
         self.cw, self.ch = self.gw * s, self.gh * s
@@ -2424,9 +2479,12 @@ class Stork:
         self.item = self.canvas.create_image(self.cw // 2, self.ch // 2,
                                               image=self.images[("up", 1)])
         wa = app.wa
-        self.dir = 1 if drop_x >= (wa[0] + wa[2]) / 2 else -1
-        self.x = float(wa[0] - 30 if self.dir == 1 else wa[2] + 30)
+        self.drop_x = min(max(drop_x, wa[0] + 30), wa[2] - 30)
+        self.dropped = False
+        self.dir = 1                                    # always fly in from the left
+        self.x = float(wa[0] - 30)
         self.y = float(wa[1] + 0.16 * (wa[3] - wa[1]))
+        self.speed = max(360.0, (wa[2] - wa[0]) / 6.0)  # cross any screen in ~6s
         self.alive = True
         self.t = 0.0
         self._place()
@@ -2435,12 +2493,15 @@ class Stork:
         if not self.alive:
             return
         self.t += dt
-        self.x += self.dir * 240 * dt
+        self.x += self.dir * self.speed * dt
         self.y += math.sin(self.t * 2.5) * 12 * dt * self.scale
         frame = "up" if int(self.t * 7) % 2 else "down"
         self.canvas.itemconfig(self.item, image=self.images[(frame, self.dir)])
         self._place()
         wa = self.app.wa
+        if not self.dropped and self.x >= self.drop_x:   # release the bundle!
+            self.dropped = True
+            self.app._stork_drop(self.drop_x, self.y + self.ch / 2)
         if self.x < wa[0] - 60 or self.x > wa[2] + 60:
             self.despawn()
 
@@ -2467,10 +2528,23 @@ TICK_MS = 40  # 25 fps
 
 # states where the cat is intentionally off the floor (skip floor re-pinning)
 AIR_STATES = ("jump", "fall", "dangle", "catch", "wallclimb", "madfall",
-              "perchsit", "perchsleep")
+              "perchsit", "perchsleep", "delivering")
 
 # censored grumbles for when you mess with her window
 ANGRY_WORDS = ("#$@%!", "@!#?*&", "%$#@!", "*!#@&!", "$#@*!!", "#@$%&!", "!?@#*")
+
+# per-voice little speech words (so every animal "talks" in character)
+VOICE_WORDS = {
+    "meow":   ("purrr~", "prrr", "mrrp", "meow!"),
+    "woof":   ("woof!", "arf~", "wrf", "bork!"),
+    "roar":   ("rawr~", "grrr", "rrr", "roaar"),
+    "squeak": ("squeak!", "eee~", "mp!", "sqk"),
+    "yip":    ("yip!", "yorf", "ree", "yip~"),
+    "baa":    ("baa~", "mehh", "baaa", "bleh"),
+    "oink":   ("oink~", "snrf", "oink!", "grnt"),
+    "moo":    ("moo~", "mrrr", "mooo", "mboo"),
+    "ribbit": ("ribbit~", "brrp", "croak", "rbt!"),
+}
 
 # anims where a costume hat/wings would visibly detach from the body
 _ACC_HIDE_ANIMS = frozenset((
@@ -2510,6 +2584,7 @@ class VCat(tk.Tk):
         self.stage = self.life_stage()
         self.scale = self._age_scale(self.stage)  # effective (age-adjusted) scale
         self.stork = None                         # delivery animation, if any
+        self._delivered = True                     # False only mid stork-delivery
         self.costume = state.get("costume", "none")
         if self.costume not in COSTUMES:
             self.costume = "none"
@@ -2745,6 +2820,9 @@ class VCat(tk.Tk):
     def voice(self):
         return SPECIES[self.species]["voice"]
 
+    def voice_word(self):
+        return random.choice(VOICE_WORDS.get(self.voice(), ("mrrp",)))
+
     def _start_passing(self):
         # a long, full life — a gentle goodbye, then a new little one arrives
         self.surface_hwnd = self.surface_last = self.perch = None
@@ -2795,13 +2873,30 @@ class VCat(tk.Tk):
         self.scale = self._age_scale(self.stage)
         self._build_images()
         if SPECIES[species]["spawn"] == "stork":
+            # hide the baby off-screen; the stork carries it in and drops it
+            self._delivered = False
+            self.y = self.wa[1] - 300
+            self.set_state("delivering", "land", 30)
             self._start_stork()
-            self.set_state("landing", "land", 0.4)
         else:
             self.set_state("egg", "egg", 9999)
+            self.play_snd("chirp", force=True)
         self._float_icon("heart")
-        self.play_snd("chirp", force=True)
         self._stash_save()
+
+    def st_delivering(self, dt):
+        pass            # wait off-screen until the stork drops us (or a fallback)
+
+    def _stork_drop(self, x, y):
+        if getattr(self, "_delivered", True):
+            return
+        self._delivered = True
+        self.x = min(max(float(x), self.wa[0] + 20), self.wa[2] - 20)
+        self.y = float(y)
+        self.vy = 0.0
+        self._float_icon("heart")
+        self.play_snd(self.voice(), force=True)
+        self.set_state("fall", "fall")    # the bundle drops and the baby lands
 
     def _start_stork(self):
         if self.stork is not None:
@@ -2883,6 +2978,10 @@ class VCat(tk.Tk):
                 self.stork.tick(dt)
                 if not self.stork.alive:
                     self.stork = None
+            # safety: if the delivery never happened, drop the baby anyway
+            if self.state == "delivering" and not self._delivered and self.stork is None:
+                self._stork_drop((self.wa[0] + self.wa[2]) / 2,
+                                 self.wa[1] + 0.2 * (self.wa[3] - self.wa[1]))
 
             # screen-shake (read by the cat and every prop's _place)
             self.shake = max(0.0, self.shake - dt * 55)
@@ -3309,7 +3408,8 @@ class VCat(tk.Tk):
     def do_go_decor(self):
         self.behavior_cd["decor"] = random.uniform(12, 35)
         # the litter box is driven by the potty urge, not idle curiosity
-        usable = [d for d in self.decor if d.kind != "litter"]
+        usable = [d for d in self.decor
+                  if d.kind not in ("litter", "grass", "tree", "pond")]
         if not usable:
             self.do_wander()
             return
@@ -3642,8 +3742,8 @@ class VCat(tk.Tk):
             self.beg_cd = random.uniform(35, 70)
             icon = {"hunger": "fish", "thirst": "drop", "love": "heart"}[worst]
             self.show_bubble(icon)
-            self._say(random.choice(("meow!", "meooow", "mew?", "mrrp!")))
-            self.play_snd("meow")
+            self._say(self.voice_word())
+            self.play_snd(self.voice())
             # hold the idle pose while asking
             self.state_t = 0.0
             self.plan_dur = max(self.plan_dur, 2.5)
@@ -3820,7 +3920,7 @@ class VCat(tk.Tk):
             self.needs["love"] = min(100.0, self.needs["love"] + 8)
             self._say("for you!")
             self._float_icon("heart")
-            self.play_snd("meow", force=True)
+            self.play_snd(self.voice(), force=True)
             self.set_state("idle", "idle", 5)
 
     # ---- cursor chase --------------------------------------------------------
@@ -4049,8 +4149,8 @@ class VCat(tk.Tk):
         for _ in range(random.randint(2, 3)):
             self._float_icon("heart", dx=random.uniform(-8, 8) * self.scale / 3)
         if random.random() < 0.45:
-            self._say(random.choice(("purrr~", "prrr", "mrrp")))
-            self.play_snd("purr")
+            self._say(self.voice_word())
+            self.play_snd(self.voice())
 
     # ---- context menu ----------------------------------------------------------------
 
@@ -4108,7 +4208,8 @@ class VCat(tk.Tk):
                             command=lambda k=key: self.act_color(k))
         look.add_cascade(label="🎨  Fur", menu=fur)
         size = tk.Menu(look, tearoff=0)
-        for label, s in (("smol", 2), ("normal", 3), ("chonky", 4)):
+        for label, s in (("smol", 2), ("normal", 3), ("big", 4),
+                         ("huge", 6), ("giant", 8)):
             size.add_command(label=("●  " if self.base_scale == s else "    ") + label,
                              command=lambda s=s: self.act_resize(s))
         look.add_cascade(label="📏  Size", menu=size)
@@ -4117,6 +4218,10 @@ class VCat(tk.Tk):
         deco = tk.Menu(menu, tearoff=0)
         for kind in ("bed", "food", "water", "litter", "post", "plant", "box"):
             deco.add_command(label="add  " + DECOR_META[kind]["label"],
+                             command=lambda k=kind: self.act_add_decor(k))
+        deco.add_separator()
+        for kind in ("grass", "tree", "pond"):    # environment / scenery
+            deco.add_command(label="grow  " + DECOR_META[kind]["label"],
                              command=lambda k=kind: self.act_add_decor(k))
         if self.decor:
             deco.add_separator()
@@ -4208,7 +4313,7 @@ class VCat(tk.Tk):
         self.needs["love"] = min(100.0, self.needs["love"] + 4)
         self._float_icon("heart")
         self._say(random.choice(("treat!", "nom!", "yum~")))
-        self.play_snd("meow")
+        self.play_snd(self.voice())
         self.set_state("treat", "munch", 1.6)   # NOT "munch" — that slams a need
 
     def st_treat(self, dt):
