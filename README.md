@@ -13,16 +13,20 @@ code — no asset files.
 ## Features
 
 - **14 species** — cat, dog, dragon, bunny, fox, goat, pig, cow, bear, panda,
-  frog, penguin, chick, hamster — each with its own ears, colors and voice
-  (meow, woof, roar, oink, moo, baa, ribbit, squeak, yip…).
+  frog, penguin, chick, hamster — each with its own ears, **muzzle/beak**,
+  colors, voice (meow, woof, roar, oink, moo, baa, ribbit, squeak, yip…) **and
+  its own way of moving** — bunnies and frogs *hop*, penguins and pigs *waddle*,
+  the dragon *hovers*, cats trot. They also idle with lots of little behaviours
+  (look around, groom, stretch, play, nap) so a flock never looks static.
 - **Tamagotchi lifecycle** — real-time aging with visible growth, birthday
   celebrations 🎂, a gentle old-age passing 🌈 and rebirth (or an Immortal
   toggle). Dragons/foxes hatch from a wobbling **egg**; mammals arrive by
   **stork** 🪶.
 - **Needs & care** — hunger, thirst, love and a bladder. Feed/water/treat her;
   give her a **litter box** or the floor gets messy.
-- **Play** — chases the **mouse cursor**, hunts a wandering **mouse** and
-  **birds**, a **laser pointer**, a physics **yarn ball** you can fling,
+- **Play** — chases the **mouse cursor**, hunts wandering critters (a mouse, a
+  brown vole, a white mouse, a scuttling **beetle**) and **birds** that come in
+  six colours, a **laser pointer**, a physics **yarn ball** you can fling,
   zoomies, backflips.
 - **Windows** — climbs the edges of your real windows and naps on the title
   bar; move the window and she falls off, flips you off with a censored swear,
@@ -31,10 +35,16 @@ code — no asset files.
   and decorate.
 - **Customise** — costumes (batcat 🦇, spidercat 🕷, wizard 🧙, king 👑,
   devil 😈), fur colors, size, and **name your pets** (saved per machine).
-- **A living ecosystem** — add a flock of animals (the old kitten is retired). Grow
-  grass/plants 🌿 and herbivores graze them; carnivores hunt herbivores; everyone
-  ages, breeds and (in hardcore mode) can die — a self-sustaining food chain that
-  runs even when you're not feeding it.
+- **A living ecosystem** — add a flock of animals (the old kitten is retired). Plant
+  grass, flowers, bushes and trees 🌿🌸🌳 — each comes in **random variants** and
+  **grows in real time** from a sprout to full size. Herbivores graze grass and
+  browse bushes; carnivores hunt herbivores; everyone ages, breeds and (in hardcore
+  mode) can die — a self-sustaining food chain that runs even when you're not feeding it.
+- **Right-click any animal** for a tidy, per-creature menu: pet it, feed it, and give
+  it commands that suit its kind — send a herbivore to **graze**, a carnivore to
+  **hunt**, an adult to **find a mate**, or just tell it to **come here / play / rest**.
+  Rename or release it. The "add animals" menu is grouped into 🌿 Herbivores and
+  🥩 Carnivores (plus a 🎲 *Surprise me*).
 - **Breeding & genetics** — males ♂ and females ♀ (females wear a little bow); a
   well-fed adult pair makes a baby that inherits blended colors, with rare rolls for
   ✨shiny variants, special abilities (swift/big/tiny/glow), cross-species hybrids,
