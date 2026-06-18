@@ -31,7 +31,14 @@ code — no asset files.
   and decorate.
 - **Customise** — costumes (batcat 🦇, spidercat 🕷, wizard 🧙, king 👑,
   devil 😈), fur colors, size, and **name your pets** (saved per machine).
-- A companion **kitten** you can adopt.
+- **A living ecosystem** — add a flock of animals (the old kitten is retired). Grow
+  grass/plants 🌿 and herbivores graze them; carnivores hunt herbivores; everyone
+  ages, breeds and (in hardcore mode) can die — a self-sustaining food chain that
+  runs even when you're not feeding it.
+- **Breeding & genetics** — males ♂ and females ♀ (females wear a little bow); a
+  well-fed adult pair makes a baby that inherits blended colors, with rare rolls for
+  ✨shiny variants, special abilities (swift/big/tiny/glow), cross-species hybrids,
+  and ultra-rare specials.
 
 Everything is saved in `%APPDATA%\vCat`.
 

@@ -45,6 +45,9 @@ PAL = {
     "i": "#d98a9e",  # cushion pink shadow
     "v": "#5cc05a",  # leaf green
     "j": "#3f9a46",  # leaf green shadow
+    "l": "#8fe06a",  # leaf green highlight
+    "b": "#a6dcff",  # water highlight
+    "q": "#2f6fb0",  # deep water
     "c": "#b9c2cf",  # bowl rim light
     "y": "#e8c84a",  # gold / yellow (crown, pee puddle, sparkles)
     "z": "#8a5cc0",  # purple (wizard hat)
@@ -759,18 +762,18 @@ DECOR_ART = {
         "nnnnnnnnnn..",
     ],
     "plant": [
-        "...v..v.....",
-        "..vvjjvv....",
-        ".vvvvvvvv...",
-        "vvvjjvvjvv..",
-        ".vvvvvvvv...",
-        "..vvvvvv....",
-        "...vvvv.....",
+        "...l..l.R...",
+        "..lvllvv....",
+        ".lvvvvvvj...",
+        "lvvllvvjvj..",
+        ".lvvvvvjj...",
+        "..lvvvjj....",
+        "...lvjj.....",
         "....vv......",
         "...tttt.....",
         "..mmmmmm....",
-        "..mnnnnm....",
-        "..mnnnnm....",
+        "..mnttnm....",
+        "..mntttm....",
         "...nnnn.....",
     ],
     "box": [
@@ -796,37 +799,45 @@ DECOR_ART = {
         "." * 2 + "c" * 12 + "." * 2,
     ],
     "grass": [
-        "..v...v...v...v.",
-        ".vvv.vvv.vvv.vv.",
-        "vvvvvvvvvvvvvvvv",
-        "jjjjjjjjjjjjjjjj",
+        "..l....l......l...",
+        ".lvl..lvl....lvl..",
+        ".vvl..vvl.R..vvl.l",
+        "lvvvllvvvllyvvvllv",
+        "vvvvvvvvvvvlvvvvvv",
+        "vjvvjvvvjvvvvjvvvj",
+        "jjvjjjvjjjvjjjvjjj",
+        "tjtjtjtjtjtjtjtjtj",
     ],
     "tree": [
-        "....vvvvvvvv....",
-        "..vvvvvvvvvvvv..",
-        ".vvvvvvvvvvvvvv.",
-        "vvvvvvjjvvvvvvvv",
-        "vvvvvvvvvvvvvvvv",
-        ".vvvvvvvvvvvvvv.",
-        "..vvvvvvvvvvvv..",
-        "...vvvvvvvvvv...",
-        ".....vvvvvv.....",
-        ".......nn.......",
-        ".......nn.......",
-        ".......nn.......",
-        "......nttn......",
-        "......nttn......",
-        ".....nnnnnn.....",
-        "....nnnnnnnn....",
-        "...nnnnnnnnnn...",
-        "..nnnnnnnnnnnn..",
+        "......llvvvj......",
+        "....llvvvvvvjj....",
+        "...lvvvvvvvvvjj...",
+        "..lvvvvvvvvvvvjj..",
+        ".lvvvvvvvvvvvvvjj.",
+        ".lvvvllvvvvvvvvjj.",
+        "lvvvvvvvvvvvvvvvjj",
+        "lvvvvvvvvvvvvvvjjj",
+        ".lvvvvvvvvvvvvjjj.",
+        "..jvvvvvvvvvvjjj..",
+        "...jjvvvvvvjjjj...",
+        ".....jjvvvjjj.....",
+        "." * 7 + "ntn" + "." * 8,
+        "." * 7 + "ntn" + "." * 8,
+        "." * 7 + "ntn" + "." * 8,
+        "." * 6 + "nttn" + "." * 8,
+        "." * 6 + "nttn" + "." * 8,
+        "." * 5 + "nnttnn" + "." * 7,
+        "." * 4 + "nnnnnnnn" + "." * 6,
+        "." * 3 + "nnnnnnnnnn" + "." * 5,
     ],
     "pond": [
-        "....BBBBBBBBBBBB....",
-        "..BBBBBBBBBBBBBBBB..",
-        ".BBBBBcBBBBBBBcBBBB.",
-        "..BBBBBBBBBBBBBBBB..",
-        "....BBBBBBBBBBBB....",
+        "....bbbbbbbbbbbb....",
+        "..bbBBBBBBBBBBBBbb..",
+        ".bBBBBWBBBBBBBBBBBb.",
+        "bBBBBBBBBBBBWBBBBBBb",
+        "qBBBBBBBBBBBBBBBBBBq",
+        ".qqBBBBBBBBBBBBBBqq.",
+        "..qqqqqqqqqqqqqqqq..",
     ],
 }
 
@@ -1228,6 +1239,72 @@ SPECIES = {
                                            "W": "#f4ecd8", "E": "#2a1a0a"},
                 "behind": None, "voice": "squeak", "spawn": "stork"},
 }
+
+# who eats what, in the ecosystem
+SPECIES_DIET = {
+    "cat": "carn", "dog": "carn", "dragon": "carn", "fox": "carn", "bear": "carn",
+    "frog": "carn", "penguin": "carn", "pig": "carn",          # omnivores hunt too
+    "goat": "herb", "cow": "herb", "bunny": "herb", "hamster": "herb",
+    "chick": "herb", "panda": "herb",
+}
+
+# breeding-unlock abilities (mutations passed to / rolled for babies)
+ABILITIES = ("swift", "big", "tiny", "glow")
+
+# a little pink bow worn by females (front overlay)
+_BOW = ["u.uu.u", ".uiiu.", "u.uu.u"]
+
+
+def _blend_hex(a, b):
+    """Average two #rrggbb colors, with a small random mutation."""
+    out = "#"
+    for i in (1, 3, 5):
+        va, vb = int(a[i:i + 2], 16), int(b[i:i + 2], 16)
+        v = (va + vb) // 2 + random.randint(-18, 18)
+        out += f"{max(0, min(255, v)):02x}"
+    return out
+
+
+def _shiny_pal():
+    return {"K": "#e8c84a", "D": "#c79a2a", "W": "#fff6c8", "E": "#ff5d76"}
+
+
+def breed_genes(g1, g2):
+    """Mix two animals' genes into a baby's — with rare shiny/ability/ultra rolls."""
+    keys = ("K", "D", "W", "E")
+    p1, p2 = g1.get("pal", {}), g2.get("pal", {})
+    pal = {}
+    for k in keys:
+        c1, c2 = p1.get(k), p2.get(k)
+        if c1 and c2:
+            pal[k] = _blend_hex(c1, c2)
+        elif c1 or c2:
+            pal[k] = c1 or c2
+    shiny = random.random() < 0.05 or (g1.get("shiny") and g2.get("shiny"))
+    ultra = random.random() < 0.012
+    ability = None
+    if random.random() < 0.30:
+        ability = random.choice([a for a in (g1.get("ability"), g2.get("ability"))
+                                 if a] or list(ABILITIES))
+    elif random.random() < 0.12:
+        ability = random.choice(ABILITIES)
+    size = (g1.get("size", 1.0) + g2.get("size", 1.0)) / 2
+    if ultra:
+        shiny = True
+        ability = "glow"
+        size *= 1.25
+    if ability == "big":
+        size = min(1.6, size * 1.25)
+    elif ability == "tiny":
+        size = max(0.6, size * 0.8)
+    genes = {"pal": pal, "shiny": shiny, "ability": ability,
+             "size": round(max(0.5, min(1.8, size)), 2), "ultra": ultra}
+    return genes
+
+
+def base_genes(species):
+    return {"pal": dict(SPECIES[species]["pal"]), "shiny": False,
+            "ability": None, "size": 1.0, "ultra": False}
 
 # animations: name -> (frame list, fps, loop)
 ANIMS = {
@@ -1654,7 +1731,7 @@ def load_state():
     state = {"hunger": 90.0, "thirst": 90.0, "love": 80.0, "scale": 3, "ts": time.time(),
              "color": "black", "sounds": True, "kitten": False, "kitten_color": "",
              "decor": [], "name": "", "kitten_name": "", "costume": "none",
-             "potty": 80.0, "messes": [],
+             "potty": 80.0, "messes": [], "animals": [],
              "species": "cat", "created_ts": None, "immortal": False}
     try:
         with open(SAVE_PATH, "r", encoding="utf-8") as f:
@@ -1693,6 +1770,27 @@ def load_state():
                         and not isinstance(m.get("x"), bool)):
                     out.append({"kind": m["kind"], "x": float(m["x"])})
             state["messes"] = out
+        ani = data.get("animals")
+        if isinstance(ani, list):
+            # animals don't age while the app is closed (freeze their clock)
+            away = max(0.0, time.time() - float(data.get("ts", time.time())))
+
+            def _num(v):
+                return (float(v) if isinstance(v, (int, float))
+                        and not isinstance(v, bool) else None)
+            out = []
+            for a in ani[:20]:
+                if isinstance(a, dict) and a.get("species") in SPECIES:
+                    b = _num(a.get("birth"))
+                    out.append({
+                        "species": a["species"],
+                        "gender": a.get("gender") if a.get("gender") in ("m", "f") else None,
+                        "genes": a.get("genes") if isinstance(a.get("genes"), dict) else None,
+                        "name": (a.get("name") or "")[:16],
+                        "birth": (b + away) if b is not None else None,
+                        "hunger": _num(a.get("hunger")),
+                        "lifespan": _num(a.get("lifespan"))})
+            state["animals"] = out
         for nk in ("name", "kitten_name"):
             v = data.get(nk)
             if isinstance(v, str):
@@ -2238,6 +2336,360 @@ class Kitten:
 
 
 # ---------------------------------------------------------------------------
+# Ecosystem animals — a companion flock that lives on its own
+# ---------------------------------------------------------------------------
+
+class Animal:
+    """A free-living companion: grazes or hunts, flees, breeds, ages and dies."""
+
+    def __init__(self, app, species, gender=None, genes=None, name="",
+                 birth=None, hunger=None, x=None, lifespan=None):
+        self.app = app
+        self.species = species if species in SPECIES else "cat"
+        self.gender = gender if gender in ("m", "f") else random.choice(("m", "f"))
+        self.genes = genes or base_genes(self.species)
+        self.name = name
+        self.diet = SPECIES_DIET.get(self.species, "carn")
+        self.birth = float(birth) if birth is not None else time.time()
+        self.lifespan = float(lifespan) if lifespan else random.uniform(900, 1500)
+        self.hunger = float(hunger) if hunger is not None else random.uniform(55, 90)
+        self.alive = True
+        self.dying = False
+        self.dead_t = 0.0
+        self.win = _pet_window(app)
+        self.facing = random.choice((1, -1))
+        wa = app.wa
+        self.x = min(max(float(x) if x is not None else app.x + random.uniform(-220, 220),
+                         wa[0] + 30), wa[2] - 30)
+        self.y = app.ground()
+        self.vy = 0.0
+        self.state, self.anim = "idle", "idle"
+        self.state_t, self.plan = 0.0, random.uniform(1, 3)
+        self.target = self.x
+        self.jump = None
+        self.breed_cd = random.uniform(25, 60)
+        self.want_baby = None        # set to a mate when a birth should happen
+        self.effects = []
+        self.pressxy = None
+        self.dragging = False
+        self._last_stage = None
+        self.canvas = None
+        self._build()
+        self.canvas.bind("<ButtonPress-1>", self._press)
+        self.canvas.bind("<B1-Motion>", self._dragm)
+        self.canvas.bind("<ButtonRelease-1>", self._release)
+        self.canvas.bind("<ButtonPress-3>", self._menu)
+        self._draw()
+
+    # ---- looks ----
+    def stage(self):
+        age = time.time() - self.birth
+        if age < 90:
+            return "baby"
+        if age > self.lifespan * 0.8:
+            return "elder"
+        return "adult"
+
+    def is_adult(self):
+        return self.stage() == "adult"
+
+    def _build(self):
+        st = self._last_stage = self.stage()
+        factor = {"baby": 0.6, "adult": 1.0, "elder": 0.9}[st]
+        base = max(2, int(self.app.base_scale))
+        s = self.scale = round(max(1.6, base * factor * self.genes.get("size", 1.0)), 2)
+        self.cw, self.ch = int(42 * s), int(36 * s)
+        if self.canvas is None:
+            self.canvas = tk.Canvas(self.win, width=self.cw, height=self.ch,
+                                    bg=KEY, highlightthickness=0, bd=0)
+            self.canvas.pack()
+        else:
+            self.canvas.config(width=self.cw, height=self.ch)
+        pal = dict(PAL, **(self.genes.get("pal") or {}))
+        if self.genes.get("shiny") or self.genes.get("ability") == "glow":
+            pal = dict(pal, **_shiny_pal())     # glow & shiny both shimmer gold
+        frames = dict(FRAMES)
+        frames.update(species_frame_overrides(self.species))
+        self.images = {}
+        for n, rows in frames.items():
+            self.images[(n, 1)] = frame_to_photo(rows, s, pal=pal)
+            self.images[(n, -1)] = frame_to_photo(rows, s, flip=True, pal=pal)
+        spec = SPECIES[self.species]
+        behind = _compose_arts([spec.get("behind")])
+        fronts = [spec.get("front")]
+        if self.gender == "f":
+            fronts.append(_BOW)
+        front = _compose_arts(fronts)
+        self.acc_img = {}
+        if behind:
+            self.acc_img[("behind", 1)] = frame_to_photo(behind, s)
+            self.acc_img[("behind", -1)] = frame_to_photo(behind, s, flip=True)
+        if front:
+            self.acc_img[("front", 1)] = frame_to_photo(front, s)
+            self.acc_img[("front", -1)] = frame_to_photo(front, s, flip=True)
+        self.heart_img = frame_to_photo(ICONS["heart"], 2)
+        self.canvas.delete("all")
+        self.acc_behind = (self.canvas.create_image(0, 0, anchor="c")
+                           if ("behind", 1) in self.acc_img else None)
+        self.item = self.canvas.create_image(self.cw // 2, self.ch, anchor="s")
+        self.acc_front = (self.canvas.create_image(0, 0, anchor="c")
+                          if ("front", 1) in self.acc_img else None)
+        self.effects = []
+        self._place()
+
+    def rescale(self):
+        self._build()
+
+    def set(self, state, anim=None, dur=2.0):
+        self.state, self.anim = state, anim or state
+        self.state_t, self.plan = 0.0, dur
+
+    def voice(self):
+        return SPECIES[self.species]["voice"]
+
+    # ---- the brain ----
+    def tick(self, dt):
+        if self.dying:
+            self.state_t += dt
+            if random.random() < 0.3:
+                self._fx(random.choice(("💀", "✦", "·")), -26, 1.2)
+            if time.monotonic() > self.dead_t:
+                self.alive = False
+            self._tick_fx(dt)
+            self._draw()
+            return
+        self.state_t += dt
+        self._dt = dt
+        self.hunger = max(0.0, self.hunger - dt * (100 / 240))   # empty in ~4 min
+        a = self.app
+        g = a.ground()
+        if self.breed_cd > 0:
+            self.breed_cd -= dt
+
+        if self.stage() != self._last_stage:
+            self._build()
+
+        # starvation / old age (hardcore, but only starve if food it could have
+        # reached actually exists — a lone pet in an empty world won't silently die)
+        if self.state != "dangle":
+            starved = self.hunger <= 0 and a.has_food_for(self.diet, self)
+            too_old = (time.time() - self.birth) > self.lifespan
+            if starved or too_old:
+                self._die()
+                return
+
+        if self.state == "dangle":
+            self._tick_fx(dt)
+            self._draw()
+            return
+        # gravity if off the floor
+        if self.state not in ("fall", "jump") and self.y < g:
+            self.vy = 0.0
+            self.set("fall", "fall")
+        if self.state == "fall":
+            self.vy += 2600 * dt
+            self.y += self.vy * dt
+            if self.y >= g:
+                self.y = g
+                self.set("idle", "idle", 1.0)
+            self._tick_fx(dt)
+            self._draw()
+            return
+        if self.y > g:
+            self.y = g
+
+        # --- decide ---
+        if self.state in ("idle", "walk", "run", "graze", "sleep", "lie"):
+            self._brain(dt)
+        elif self.state == "eat":
+            if self.state_t >= self.plan:
+                self.set("idle", "idle", random.uniform(1, 3))
+        self._tick_fx(dt)
+        self._draw()
+
+    def _brain(self, dt):
+        a = self.app
+        # 1) flee a predator (herbivores only)
+        if self.diet == "herb":
+            threat = a.nearest_threat(self)
+            if threat is not None:
+                self.facing = 1 if self.x > threat.x else -1
+                self.anim = "run"
+                self.x += self.facing * 110 * self._swift() * self.scale / 3 * dt
+                self._clamp()
+                return
+        # 2) eat when hungry
+        if self.hunger < 45:
+            if self.diet == "herb":
+                food = a.nearest_food(self.x)
+                if food is not None:
+                    if abs(food.x - self.x) > 12 * self.scale:
+                        self._approach(food.x, 90)
+                        self.anim = "walk"
+                    else:
+                        self.set("graze", "munch", 2.0)
+                        food.graze()
+                        self.hunger = min(100.0, self.hunger + 28)
+                    return
+            else:
+                prey = a.nearest_prey(self)
+                if prey is not None:
+                    if abs(prey.x - self.x) > 14 * self.scale:
+                        self._approach(prey.x, 130)
+                        self.anim = "run"
+                    else:
+                        prey._die(eaten=True)
+                        self.hunger = 100.0
+                        self._fx("✦", -20, 0.6)
+                        a.play_snd(self.voice())
+                        self.set("eat", "bat", 1.2)
+                    return
+        # 3) breed when well-fed adult
+        if (self.gender == "f" and self.is_adult() and self.breed_cd <= 0
+                and self.hunger > 60 and len(a.animals) < a.animal_cap):
+            mate = a.nearest_mate(self)
+            if mate is not None:
+                if abs(mate.x - self.x) > 16 * self.scale:
+                    self._approach(mate.x, 80)
+                    self.anim = "walk"
+                else:
+                    self.want_baby = mate
+                    self.breed_cd = random.uniform(60, 120)
+                    mate.breed_cd = random.uniform(60, 120)
+                    self.hunger -= 20
+                    self._heart()
+                    self.set("idle", "idle", 2)
+                return
+        # 4) idle / wander / nap
+        if self.state_t >= self.plan:
+            r = random.random()
+            if r < 0.4:
+                self.set("idle", "idle", random.uniform(2, 5))
+                if random.random() < 0.5:
+                    self.facing = random.choice((1, -1))
+            elif r < 0.6:
+                self.set("lie", "lie", random.uniform(3, 7))
+            elif r < 0.72 and self.stage() != "baby":
+                self.set("sleep", "sleep", random.uniform(8, 20))
+            else:
+                self.target = min(max(self.x + random.uniform(-200, 200),
+                                      a.wa[0] + 16), a.wa[2] - 16)
+                self.set("walk", "walk", 8)
+        elif self.state == "walk":
+            if abs(self.target - self.x) < 5:
+                self.set("idle", "idle", random.uniform(1.5, 4))
+            else:
+                self._approach(self.target, 40)
+
+    def _approach(self, tx, spd):
+        self.facing = 1 if tx > self.x else -1
+        self.x += self.facing * spd * self._swift() * self.scale / 3 * self._dt
+        self._clamp()
+
+    def _swift(self):
+        return 1.35 if self.genes.get("ability") == "swift" else 1.0
+
+    def _clamp(self):
+        self.x = min(max(self.x, self.app.wa[0] + 12), self.app.wa[2] - 12)
+
+    def _die(self, eaten=False):
+        if self.dying:
+            return
+        self.dying = True
+        self.dead_t = time.monotonic() + (0.8 if eaten else 1.6)
+        self.anim = "lie"
+        self._fx("💀", -22, 1.4)
+
+    # ---- fx / draw ----
+    def _heart(self):
+        self._fx_img(self.heart_img, -24, 1.2)
+
+    def _fx_img(self, img, vy, t):
+        iid = self.canvas.create_image(self.cw / 2, self.ch - 22 * self.scale, image=img)
+        self.effects.append({"id": iid, "t": t, "vy": vy})
+
+    def _fx(self, text, vy, t):
+        iid = self.canvas.create_text(self.cw / 2, self.ch - 22 * self.scale, text=text,
+                                      fill="#f4f4f8", font=("Segoe UI", 4 + int(2 * self.scale)))
+        self.effects.append({"id": iid, "t": t, "vy": vy})
+
+    def _tick_fx(self, dt):
+        for fx in self.effects[:]:
+            fx["t"] -= dt
+            self.canvas.move(fx["id"], 0, fx["vy"] * dt)
+            if fx["t"] <= 0:
+                self.canvas.delete(fx["id"])
+                self.effects.remove(fx)
+
+    def _draw(self):
+        frames, fps, loop = ANIMS.get(self.anim, ANIMS["idle"])
+        idx = int(self.state_t * fps)
+        idx = idx % len(frames) if loop else min(idx, len(frames) - 1)
+        self.canvas.itemconfig(self.item, image=self.images[(frames[idx], self.facing)])
+        hide = self.anim in _ACC_HIDE_ANIMS
+        if self.acc_behind is not None:
+            self.canvas.itemconfig(self.acc_behind, state="hidden" if hide else "normal")
+            if not hide:
+                self.canvas.coords(self.acc_behind, self.cw / 2, self.ch - 12 * self.scale)
+                self.canvas.itemconfig(self.acc_behind,
+                                       image=self.acc_img[("behind", self.facing)])
+        if self.acc_front is not None:
+            self.canvas.itemconfig(self.acc_front, state="hidden" if hide else "normal")
+            if not hide:
+                self.canvas.coords(self.acc_front, self.cw / 2 + self.facing * 4 * self.scale,
+                                   self.ch - 19 * self.scale)
+                self.canvas.itemconfig(self.acc_front,
+                                       image=self.acc_img[("front", self.facing)])
+        self._place()
+
+    def _place(self):
+        self.win.geometry(f"+{int(self.x - self.cw / 2 + self.app.sdx)}"
+                          f"+{int(self.y - self.ch + self.app.sdy)}")
+
+    # ---- interaction ----
+    def _press(self, ev):
+        self.pressxy = (ev.x_root, ev.y_root)
+        self.dragging = False
+
+    def _dragm(self, ev):
+        if self.pressxy is None or self.dying:
+            return
+        if not self.dragging and math.dist((ev.x_root, ev.y_root), self.pressxy) > 9:
+            self.dragging = True
+            self.jump = None
+            self.set("dangle", "dangle")
+        if self.dragging:
+            self.x = float(ev.x_root)
+            self.y = float(ev.y_root) + 26 * self.scale
+            self._draw()
+
+    def _release(self, ev):
+        if self.dragging:
+            self.vy = 0.0
+            self.set("fall", "fall")
+        elif not self.dying:
+            self.hunger = min(100.0, self.hunger + 6)
+            self._heart()
+            self.app.play_snd(self.voice())
+        self.pressxy = None
+        self.dragging = False
+
+    def _menu(self, ev):
+        self.app.animal_menu(self, ev)
+
+    def to_save(self):
+        return {"species": self.species, "gender": self.gender, "genes": self.genes,
+                "name": self.name, "birth": self.birth, "hunger": round(self.hunger, 1),
+                "lifespan": round(self.lifespan, 1)}
+
+    def destroy(self):
+        try:
+            self.win.destroy()
+        except tk.TclError:
+            pass
+
+
+# ---------------------------------------------------------------------------
 # Furniture / decorations
 # ---------------------------------------------------------------------------
 
@@ -2248,6 +2700,7 @@ class Decor:
         self.app = app
         self.kind = kind
         self.uses = uses               # litter-box dirtiness (uses since scoop)
+        self.lushness = 100.0          # food in grass/plant (regrows over time)
         art = DECOR_ART[kind]
         self.gw, self.gh = len(art[0]), len(art)
         s = self.scale = app.scale
@@ -2313,6 +2766,16 @@ class Decor:
 
     def _menu(self, ev):
         self.app.decor_menu(self, ev)
+
+    def edible(self):
+        return self.kind in ("grass", "plant") and self.lushness > 8
+
+    def graze(self):
+        self.lushness = max(0.0, self.lushness - 35.0)
+
+    def regrow(self, dt):
+        if self.kind in ("grass", "plant"):
+            self.lushness = min(100.0, self.lushness + dt * 4.0)  # full in ~25s
 
     def destroy(self):
         try:
@@ -2633,7 +3096,9 @@ class VCat(tk.Tk):
         self.carry_target = 0.0
         self.mouth_item = None
         self._snd_cd = 0.0
-        self.kitten = None
+        self.kitten = None             # retired in favour of the animal flock
+        self.animals = []              # the ecosystem companions
+        self.animal_cap = 14
         self.laser = None              # the red dot, while the laser is out
         self.laser_until = 0.0
         self.toy = None                # the yarn ball, while it's out
@@ -2685,11 +3150,25 @@ class VCat(tk.Tk):
                 self.messes.append(Mess(self, m["kind"], m["x"]))
             except Exception as e:
                 log_error(f"mess load: {e!r}")
-        if state.get("kitten"):
+        for a in state.get("animals", []):
+            try:
+                self.animals.append(Animal(
+                    self, a["species"], a.get("gender"), a.get("genes"),
+                    a.get("name", ""), a.get("birth"), a.get("hunger"),
+                    lifespan=a.get("lifespan")))
+            except Exception as e:
+                log_error(f"animal load: {e!r}")
+        if state.get("kitten") and not state.get("animals"):
+            # migrate the old single kitten into the new companion flock
             kc = state.get("kitten_color") or (
                 "ginger" if state["color"] == "black" else "black")
-            self.kitten = Kitten(self, kc)
-            self.kitten.name = state.get("kitten_name", "")
+            try:
+                self.animals.append(Animal(self, "cat", genes={
+                    "pal": dict(variant_pal(kc)), "shiny": False,
+                    "ability": None, "size": 1.0, "ultra": False},
+                    name=state.get("kitten_name", "")))
+            except Exception as e:
+                log_error(f"kitten migrate: {e!r}")
         self.last_tick = time.monotonic()
         self.after(TICK_MS, self.tick)
 
@@ -3044,8 +3523,7 @@ class VCat(tk.Tk):
             if handler:
                 handler(dt)
 
-            if self.kitten:
-                self.kitten.tick(dt)
+            self._tick_ecosystem(dt)      # the companion flock lives its life
 
             self._draw()
             self._tick_effects(dt)
@@ -3060,7 +3538,8 @@ class VCat(tk.Tk):
                         pass
                 self.attributes("-topmost", True)
                 self.lift()
-                for pet in (self.kitten, self.critter, self.toy, self.laser, self.bird):
+                for pet in ([self.critter, self.toy, self.laser, self.bird]
+                            + list(self.animals)):
                     if pet is not None:
                         try:
                             pet.win.attributes("-topmost", True)
@@ -3100,13 +3579,10 @@ class VCat(tk.Tk):
             self.needs, scale=self.base_scale,    # the user's Size tier, not age scale
             potty=self.potty, name=self.name, costume=self.costume,
             species=self.species, created_ts=self.created_ts, immortal=self.immortal,
-            kitten=self.kitten is not None,
-            kitten_color=self.kitten.color if self.kitten else
-            self.persist.get("kitten_color", ""),
-            kitten_name=self.kitten.name if self.kitten else
-            self.persist.get("kitten_name", ""),
+            kitten=False,
             decor=[{"kind": d.kind, "x": d.x, "uses": d.uses} for d in self.decor],
-            messes=[{"kind": m.kind, "x": m.x} for m in self.messes])
+            messes=[{"kind": m.kind, "x": m.x} for m in self.messes],
+            animals=[a.to_save() for a in self.animals if a.alive and not a.dying])
         save_state(self.persist)
 
     def play_snd(self, kind, force=False):
@@ -3131,6 +3607,106 @@ class VCat(tk.Tk):
 
     def ground(self):
         return float(self.wa[3])
+
+    # ---- ecosystem ------------------------------------------------------
+
+    def has_food_for(self, diet, exclude=None):
+        """Is there anything this diet could eat in the world right now?"""
+        if diet == "herb":
+            return any(d.edible() for d in self.decor)
+        return any(o is not exclude and o.alive and not o.dying and o.diet == "herb"
+                   and o.state != "dangle" for o in self.animals)
+
+    def nearest_food(self, x):
+        best, bd = None, 1e9
+        for d in self.decor:
+            if d.edible():
+                dd = abs(d.x - x)
+                if dd < bd:
+                    best, bd = d, dd
+        return best
+
+    def nearest_prey(self, animal):
+        best, bd = None, 700
+        for o in self.animals:
+            if (o is not animal and o.alive and not o.dying and o.diet == "herb"
+                    and o.state != "dangle"):     # not while the user is holding it
+                dd = abs(o.x - animal.x)
+                if dd < bd:
+                    best, bd = o, dd
+        return best
+
+    def nearest_threat(self, animal):
+        best, bd = None, 240
+        for o in self.animals:
+            if (o is not animal and o.alive and not o.dying and o.diet == "carn"
+                    and o.hunger < 60 and o.state != "dangle"):
+                dd = abs(o.x - animal.x)
+                if dd < bd:
+                    best, bd = o, dd
+        return best
+
+    def nearest_mate(self, animal):
+        # prefer a same-species mate; fall back to another species (-> hybrids)
+        best, bd, alt, ad = None, 520, None, 520
+        for o in self.animals:
+            if (o is not animal and o.alive and not o.dying and o.gender != animal.gender
+                    and o.is_adult() and o.hunger > 55 and o.breed_cd <= 0
+                    and o.state != "dangle"):
+                dd = abs(o.x - animal.x)
+                if o.species == animal.species:
+                    if dd < bd:
+                        best, bd = o, dd
+                elif dd < ad:
+                    alt, ad = o, dd
+        return best or alt
+
+    def spawn_animal(self, species, gender=None, genes=None, x=None, name=""):
+        if len(self.animals) >= self.animal_cap:
+            return None
+        try:
+            an = Animal(self, species, gender=gender, genes=genes, x=x, name=name)
+            self.animals.append(an)
+            return an
+        except Exception as e:
+            log_error(f"spawn_animal: {e!r}")
+            return None
+
+    def _tick_ecosystem(self, dt):
+        if not self.animals and not any(d.kind in ("grass", "plant") for d in self.decor):
+            return
+        for d in self.decor:
+            d.regrow(dt)
+        births = []
+        for an in self.animals:
+            an.tick(dt)
+            if an.want_baby is not None and len(self.animals) + len(births) < self.animal_cap:
+                mate = an.want_baby
+                an.want_baby = None
+                genes = breed_genes(an.genes, mate.genes)
+                # hybrids: rare chance the baby takes the other parent's species
+                sp = an.species
+                if an.species != mate.species and random.random() < 0.5:
+                    sp = mate.species
+                births.append((sp, genes, (an.x + mate.x) / 2))
+            else:
+                an.want_baby = None
+        for sp, genes, bx in births:
+            baby = self.spawn_animal(sp, genes=genes, x=bx)
+            if baby is not None:
+                baby.birth = time.time()          # born a baby
+                baby.hunger = 70.0
+                self._float_icon("heart")
+                if genes.get("ultra"):
+                    self._say("✨ ULTRA RARE! ✨", dur=3.0)
+                elif genes.get("shiny"):
+                    self._say("✨ a shiny! ✨", dur=2.5)
+        # bury the dead
+        dead = [a for a in self.animals if not a.alive]
+        for a in dead:
+            a.destroy()
+        if dead:
+            self.animals = [a for a in self.animals if a.alive]
 
     def _maintain_surface(self, dt):
         """If standing on a window, follow gentle drifts; rage-quit if jostled."""
@@ -4232,9 +4808,30 @@ class VCat(tk.Tk):
                              command=self.clean_all_messes)
         menu.add_cascade(label="🏠  Decorate", menu=deco)
 
-        menu.add_command(
-            label="🐾  Send kitten home" if self.kitten else "🐾  Adopt a kitten",
-            command=self.act_kitten)
+        emoji = {"cat": "🐈", "dog": "🐕", "dragon": "🐉", "bunny": "🐇", "fox": "🦊",
+                 "goat": "🐐", "pig": "🐷", "cow": "🐄", "bear": "🐻", "panda": "🐼",
+                 "frog": "🐸", "penguin": "🐧", "chick": "🐤", "hamster": "🐹"}
+        zoo = tk.Menu(menu, tearoff=0)
+        herb = sum(1 for a in self.animals if a.diet == "herb")
+        carn = sum(1 for a in self.animals if a.diet == "carn")
+        zoo.add_command(label=f"🌍  flock: {len(self.animals)}/{self.animal_cap}"
+                              f"   🌿{herb} 🥩{carn}", state="disabled")
+        zoo.add_separator()
+        for key, sp in SPECIES.items():
+            diet = "🌿" if SPECIES_DIET.get(key) == "herb" else "🥩"
+            pair = tk.Menu(zoo, tearoff=0)
+            pair.add_command(label="♂ male",
+                             command=lambda k=key: self.act_add_animal(k, "m"))
+            pair.add_command(label="♀ female",
+                             command=lambda k=key: self.act_add_animal(k, "f"))
+            pair.add_command(label="♂♀ a breeding pair",
+                             command=lambda k=key: self.act_add_pair(k))
+            zoo.add_cascade(label=f"{emoji.get(key, '🐾')} {diet} {sp['name']}", menu=pair)
+        if self.animals:
+            zoo.add_separator()
+            zoo.add_command(label="🧹  Release all animals", command=self.clear_animals)
+        menu.add_cascade(label="🐾  Animals", menu=zoo)
+
         menu.add_command(label="✏  Rename…", command=self.act_rename)
 
         newpet = tk.Menu(menu, tearoff=0)
@@ -4487,17 +5084,15 @@ class VCat(tk.Tk):
 
     def _rescale_props(self):
         """Resize companions/furniture to match the cat's current scale."""
-        if self.kitten:
-            kc, kn = self.kitten.color, self.kitten.name
-            self.kitten.destroy()
-            self.kitten = Kitten(self, kc)
-            self.kitten.name = kn          # keep her name across the rebuild
         if self.critter is not None and self.critter.alive:
             self.critter.rescale()
         if self.toy is not None:
             self.toy.rescale()
         if self.bird is not None and self.bird.alive:
             self.bird.rescale()
+        for an in self.animals:
+            if an.alive:
+                an.rescale()
         for d in self.decor + self.messes:
             d.rescale()
 
@@ -4550,6 +5145,66 @@ class VCat(tk.Tk):
             self._stash_save()
         except Exception as e:
             log_error(f"add_decor: {e!r}")
+
+    def act_add_animal(self, species, gender=None):
+        if len(self.animals) >= self.animal_cap:
+            self._say("(flock is full!)")
+            return
+        cx = min(max(float(self.cur[0]), self.wa[0] + 40), self.wa[2] - 40)
+        if self.spawn_animal(species, gender=gender, x=cx):
+            self._float_icon("heart")
+            self.play_snd("chirp")
+            self._stash_save()
+
+    def act_add_pair(self, species):
+        cx = float(self.cur[0])
+        a = self.spawn_animal(species, gender="m", x=cx - 40 * self.base_scale)
+        b = self.spawn_animal(species, gender="f", x=cx + 40 * self.base_scale)
+        if a or b:
+            self._float_icon("heart")
+            self.play_snd("chirp")
+            self._stash_save()
+
+    def clear_animals(self):
+        for a in self.animals:
+            a.destroy()
+        self.animals = []
+        self._stash_save()
+
+    def animal_menu(self, animal, ev):
+        m = tk.Menu(self, tearoff=0, font=("Segoe UI", 10))
+        spn = SPECIES[animal.species]["name"]
+        sex = "♀ female" if animal.gender == "f" else "♂ male"
+        tags = []
+        if animal.genes.get("ultra"):
+            tags.append("✨ULTRA")
+        elif animal.genes.get("shiny"):
+            tags.append("✨shiny")
+        if animal.genes.get("ability"):
+            tags.append(animal.genes["ability"])
+        title = f"{animal.name or spn} · {sex} · {animal.stage()}"
+        m.add_command(label=title, state="disabled")
+        m.add_command(label=f"   {spn} {('· ' + ', '.join(tags)) if tags else ''}",
+                      state="disabled")
+        m.add_command(label=f"   hunger {int(animal.hunger)}%", state="disabled")
+        m.add_separator()
+        m.add_command(label="🍖  Feed", command=lambda: self._feed_animal(animal))
+        m.add_command(label="🗑  Release", command=lambda: self._release_animal(animal))
+        try:
+            m.tk_popup(ev.x_root, ev.y_root)
+        finally:
+            m.grab_release()
+
+    def _feed_animal(self, animal):
+        if animal in self.animals and animal.alive:
+            animal.hunger = 100.0
+            animal._heart()
+
+    def _release_animal(self, animal):
+        if animal in self.animals:
+            self.animals.remove(animal)
+        animal.destroy()
+        self._stash_save()
 
     def decor_menu(self, decor, ev):
         m = tk.Menu(self, tearoff=0, font=("Segoe UI", 10))
