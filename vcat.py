@@ -1093,12 +1093,19 @@ try:
     from vcat_assets import FURN_ART
 except Exception:
     FURN_ART = {}
+# per-species pixel-art body sprites (so each animal looks like itself, not a cat)
+try:
+    from vcat_assets import ANIMAL_ART
+except Exception:
+    ANIMAL_ART = {}
 
 # AI grids are larger than the old hand-drawn ones, so each kind renders at a
 # fraction of the pet's scale to keep natural relative sizes.
 DECOR_FACTOR = {"tree": 1.0, "bush": 0.72, "flower": 0.62, "grass": 0.5,
                 "bed": 0.42, "food": 0.42, "water": 0.42, "post": 0.5,
                 "box": 0.52, "litter": 0.42, "pond": 0.46}
+# the ~40px animal sprites render at this fraction of the pet scale
+ANIMAL_SPRITE_FACTOR = 0.7
 
 
 def decor_variants(kind):
@@ -1135,6 +1142,10 @@ try:
     _validate_grids(FURN_ART.values())
 except Exception:
     FURN_ART = {}
+try:
+    _validate_grids(ANIMAL_ART.values())
+except Exception:
+    ANIMAL_ART = {}
 
 # ---------------------------------------------------------------------------
 # Birds (fly across the top; the cat tries to catch them)
@@ -2843,6 +2854,10 @@ class Animal:
         factor = {"baby": 0.6, "adult": 1.0, "elder": 0.9}[st]
         base = max(2, int(self.app.base_scale))
         s = self.scale = round(max(1.6, base * factor * self.genes.get("size", 1.0)), 2)
+        self.use_sprite = self.species in ANIMAL_ART
+        if self.use_sprite:                 # distinct pixel-art body for this species
+            self._build_sprite(s)
+            return
         self.cw, self.ch = int(42 * s), int(36 * s)
         if self.canvas is None:
             self.canvas = tk.Canvas(self.win, width=self.cw, height=self.ch,
@@ -2879,6 +2894,29 @@ class Animal:
         self.item = self.canvas.create_image(self.cw // 2, self.ch, anchor="s")
         self.acc_front = (self.canvas.create_image(0, 0, anchor="c")
                           if ("front", 1) in self.acc_img else None)
+        self.effects = []
+        self._place()
+
+    def _build_sprite(self, s):
+        """Build a single distinct pixel-art body sprite for this species."""
+        grid, pal = ANIMAL_ART[self.species]
+        bs = max(1.0, s * ANIMAL_SPRITE_FACTOR)
+        self.body_img = {1: frame_to_photo(grid, bs, pal=pal),
+                         -1: frame_to_photo(grid, bs, flip=True, pal=pal)}
+        iw, ih = self.body_img[1].width(), self.body_img[1].height()
+        self.cw = max(iw, int(24 * s))
+        self.ch = ih + int(10 * s)          # headroom above for hearts/zzz effects
+        if self.canvas is None:
+            self.canvas = tk.Canvas(self.win, width=self.cw, height=self.ch,
+                                    bg=KEY, highlightthickness=0, bd=0)
+            self.canvas.pack()
+        else:
+            self.canvas.config(width=self.cw, height=self.ch)
+        self.canvas.delete("all")
+        self.acc_behind = self.acc_front = None    # sprite carries its own look
+        self.item = self.canvas.create_image(self.cw // 2, self.ch, anchor="s")
+        self.canvas.itemconfig(self.item, image=self.body_img[self.facing])
+        self.heart_img = frame_to_photo(ICONS["heart"], 2)
         self.effects = []
         self._place()
 
@@ -3181,6 +3219,15 @@ class Animal:
                 self.effects.remove(fx)
 
     def _draw(self):
+        if getattr(self, "use_sprite", False):
+            moving = self.anim in ("walk", "run")
+            gdy, _ = gait_render(self.species, self.anim, self.state_t, self.scale, moving)
+            if moving and abs(gdy) < 0.01:      # plain walkers: a gentle step bob
+                gdy = -abs(math.sin(self.state_t * 9)) * 1.5 * self.scale
+            self._gait_dy = gdy
+            self.canvas.itemconfig(self.item, image=self.body_img[self.facing])
+            self._place()
+            return
         moving = self.anim in ("walk", "run")
         gdy, anim2 = gait_render(self.species, self.anim, self.state_t,
                                  self.scale, moving)
