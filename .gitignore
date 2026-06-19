@@ -29,8 +29,11 @@ scene_preview.png
 comfy_gen.py
 pixelize.py
 gen_batch.py
+gen_batch2.py
 gen_assets_module.py
 convert_preview.py
 preview_ai.py
+preview2.py
 scene_preview.py
+scene2.py
 ai_assets/
