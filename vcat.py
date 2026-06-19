@@ -566,6 +566,16 @@ ICON_HEART = [
     "...RR...",
     "........",
 ]
+ICON_VEG = [          # a little carrot, for what the herbivores would rather eat
+    "..l.v...",
+    ".vlvv...",
+    "..OOO...",
+    "..OOO...",
+    "...OO...",
+    "...O....",
+    "........",
+    "........",
+]
 ICON_ZZZ = [
     "........",
     ".WWWW...",
@@ -749,7 +759,8 @@ BIRD_PALS = [
     {"B": "#eef0f4"},                      # white dove
 ]
 
-ICONS = {"fish": ICON_FISH, "drop": ICON_DROP, "heart": ICON_HEART, "zzz": ICON_ZZZ}
+ICONS = {"fish": ICON_FISH, "drop": ICON_DROP, "heart": ICON_HEART, "zzz": ICON_ZZZ,
+         "veg": ICON_VEG}
 
 # sanity-check the art at import time
 for _name, _f in FRAMES.items():
@@ -1492,6 +1503,42 @@ SPECIES_GAIT = {
     "cow": "waddle", "bear": "waddle", "panda": "waddle",
     "dragon": "flutter",
 }                                  # cat / dog / fox fall through to a normal walk
+
+# What each species naturally DOES, so a cow doesn't pounce on birds. These gate
+# the main pet's cat-built behaviours; anything not granted simply never fires,
+# leaving the universal set (idle/wander/lie/groom/sleep/beg/eat-from-bowl/come/nap).
+#   hunt     - stalk & pounce the cursor and the wandering critter (predators)
+#   birds    - leap to snatch a passing bird out of the air (agile predators)
+#   toy      - chase & bat the yarn ball
+#   laser    - chase the laser dot
+#   climb    - scale the side of a window
+#   scratch  - claw window edges / scratch post, paw desktop icons & the plant
+#   box      - hop into and perch on the cardboard box
+#   tailchase- spin chasing its own tail
+#   zoomies  - sudden sprint back and forth
+#   flip     - backflip trick
+#   litter   - uses the litter box / relieves itself on the floor
+SPECIES_TRAITS = {
+    "cat":     {"hunt", "birds", "toy", "laser", "climb", "scratch", "box",
+                "tailchase", "zoomies", "flip", "litter"},
+    "dog":     {"hunt", "birds", "toy", "laser", "tailchase", "zoomies", "flip"},
+    "fox":     {"hunt", "birds", "climb", "tailchase", "zoomies", "flip"},
+    "dragon":  {"hunt", "birds", "zoomies", "flip"},
+    "bear":    {"hunt", "climb"},
+    "frog":    {"hunt"},
+    "goat":    {"climb", "zoomies"},
+    "bunny":   {"box", "zoomies"},
+    "hamster": {"box", "climb", "zoomies"},
+    "panda":   {"climb"},
+    "penguin": set(),
+    "pig":     set(),
+    "cow":     set(),
+    "chick":   set(),
+}
+
+
+def traits_of(species):
+    return SPECIES_TRAITS.get(species, set())
 
 
 def gait_of(species):
@@ -3688,7 +3735,10 @@ class VCat(tk.Tk):
     def update_needs(self, dt):
         for k, rate in DECAY.items():
             self.needs[k] = max(0.0, self.needs[k] - rate * dt)
-        self.potty = max(0.0, self.potty - (100 / (5 * 3600)) * dt)
+        if self.can("litter"):
+            self.potty = max(0.0, self.potty - (100 / (5 * 3600)) * dt)
+        else:
+            self.potty = 100.0          # only litter-using species track a bladder
         # a dirty home slowly bums her out (motivates cleaning, but bounded)
         if self.messes:
             self.needs["love"] = max(0.0, self.needs["love"]
@@ -4061,6 +4111,10 @@ class VCat(tk.Tk):
     def ground(self):
         return float(self.wa[3])
 
+    def can(self, trait):
+        """Does this pet's species naturally do this behaviour? (see SPECIES_TRAITS)"""
+        return trait in SPECIES_TRAITS.get(self.species, set())
+
     # ---- ecosystem ------------------------------------------------------
 
     def has_food_for(self, diet, exclude=None):
@@ -4272,19 +4326,20 @@ class VCat(tk.Tk):
             options += [("lie", 2.0 if old else 1.2), ("groom", 1.6)]
             if self.behavior_cd["sleep"] <= 0:
                 options.append(("sleep", sleepw))
-            # the spry middle stages do the athletic stuff
+            # the spry middle stages do the athletic stuff (species-appropriate only)
             if not young and not old:
-                if self.behavior_cd["scratch"] <= 0:
+                if self.can("scratch") and self.behavior_cd["scratch"] <= 0:
                     options.append(("go_scratch", 1.1))
-                if self.behavior_cd["climb"] <= 0 and self.windows():
+                if self.can("climb") and self.behavior_cd["climb"] <= 0 and self.windows():
                     options.append(("go_climb", 2.6))
-                if self.behavior_cd["icon"] <= 0:
+                if self.can("scratch") and self.behavior_cd["icon"] <= 0:
                     options.append(("go_icon", 0.8))
-                if self.behavior_cd["tailchase"] <= 0:
+                if self.can("tailchase") and self.behavior_cd["tailchase"] <= 0:
                     options.append(("tailchase", 0.6))
-                options.append(("zoomies_auto", 0.7 if night else 0.22))
-            elif young and self.behavior_cd["tailchase"] <= 0:
-                options.append(("tailchase", 1.0))     # kittens chase their tail
+                if self.can("zoomies"):
+                    options.append(("zoomies_auto", 0.7 if night else 0.22))
+            elif young and self.can("tailchase") and self.behavior_cd["tailchase"] <= 0:
+                options.append(("tailchase", 1.0))     # young ones chase their tail
             if self.decor and self.behavior_cd["decor"] <= 0:
                 options.append(("go_decor", 2.4))
         else:
@@ -4438,8 +4493,12 @@ class VCat(tk.Tk):
     def do_go_decor(self):
         self.behavior_cd["decor"] = random.uniform(12, 35)
         # the litter box is driven by the potty urge, not idle curiosity
-        usable = [d for d in self.decor
-                  if d.kind not in ("litter", "grass", "tree", "pond", "bush", "flower")]
+        blocked = {"litter", "grass", "tree", "pond", "bush", "flower"}
+        if not self.can("scratch"):          # only clawing species use the post/plant
+            blocked |= {"post", "plant"}
+        if not self.can("box"):              # only box-dwellers hop in the box
+            blocked.add("box")
+        usable = [d for d in self.decor if d.kind not in blocked]
         if not usable:
             self.do_wander()
             return
@@ -4510,6 +4569,8 @@ class VCat(tk.Tk):
     # ---- nature calls ------------------------------------------------------
 
     def _maybe_potty(self):
+        if not self.can("litter"):
+            return False
         if (self.potty > 22 or self.surface_hwnd is not None
                 or self.perch is not None):
             return False
@@ -4574,6 +4635,8 @@ class VCat(tk.Tk):
     # ---- bird watching / catching ------------------------------------------
 
     def _maybe_bird(self):
+        if not self.can("birds"):
+            return False
         b = self.bird
         if (b is not None and b.alive and not b.caught
                 and self.surface_hwnd is None and self.perch is None):
@@ -4770,7 +4833,8 @@ class VCat(tk.Tk):
         worst = self.need_low()
         if worst and self.beg_cd <= 0:
             self.beg_cd = random.uniform(35, 70)
-            icon = {"hunger": "fish", "thirst": "drop", "love": "heart"}[worst]
+            food = "veg" if SPECIES_DIET.get(self.species) == "herb" else "fish"
+            icon = {"hunger": food, "thirst": "drop", "love": "heart"}[worst]
             self.show_bubble(icon)
             self._say(self.voice_word())
             self.play_snd(self.voice())
@@ -4783,6 +4847,8 @@ class VCat(tk.Tk):
     # ---- laser pointer -----------------------------------------------------------
 
     def _maybe_laser(self):
+        if not self.can("laser"):
+            return False
         if self.laser is not None and self.surface_hwnd is None:
             self.after_walk = None
             self.set_state("laser", "run", 9999)
@@ -4813,6 +4879,8 @@ class VCat(tk.Tk):
     # ---- yarn ball ------------------------------------------------------------------
 
     def _maybe_toy(self):
+        if not self.can("toy"):
+            return False
         t = self.toy
         if t is None or t.held or self.surface_hwnd is not None:
             return False
@@ -4876,12 +4944,22 @@ class VCat(tk.Tk):
     # ---- backflip ----------------------------------------------------------------------
 
     def do_flip(self):
+        if not self.can("flip"):
+            # not a backflipping species — but if we were caught mid-air (e.g. a
+            # bear/frog pouncing an elevated cursor), come back down, don't float
+            if self.surface_hwnd is None and self.perch is None and self.y < self.ground():
+                self.start_fall()
+            else:
+                self.set_state("idle", "idle", 2)
+            return
         self.start_jump(self.x, self.ground(), anim="flip", dur=0.7)
         self.after_jump = ("tada", None)
 
     # ---- mouse hunting ---------------------------------------------------------
 
     def _maybe_hunt(self):
+        if not self.can("hunt"):
+            return False
         c = self.critter
         if (c is not None and c.alive and not c.caught
                 and self.surface_hwnd is None and abs(c.x - self.x) < 750):
@@ -4956,6 +5034,8 @@ class VCat(tk.Tk):
     # ---- cursor chase --------------------------------------------------------
 
     def _maybe_chase(self):
+        if not self.can("hunt"):
+            return False
         if self.chase_cd > 0 or self.surface_hwnd is not None:
             return False
         cx, cy = self.cur
@@ -5199,28 +5279,35 @@ class VCat(tk.Tk):
 
         spname = SPECIES[self.species]["name"]
         who = self.name or spname
-        menu.add_command(label=f"🐈  {who}  ·  {spname}", state="disabled")
+        menu.add_command(label=f"{SPECIES_EMOJI.get(self.species, '🐈')}  {who}  ·  {spname}",
+                         state="disabled")
         menu.add_command(
             label=f"     {STAGE_LABEL.get(self.stage, self.stage)}  ·  {self.age_text()}",
             state="disabled")
         menu.add_command(label=f"  food   {bar(self.needs['hunger'])}", state="disabled")
         menu.add_command(label=f"  water  {bar(self.needs['thirst'])}", state="disabled")
         menu.add_command(label=f"  love   {bar(self.needs['love'])}", state="disabled")
-        menu.add_command(label=f"  potty  {bar(self.potty)}", state="disabled")
+        if self.can("litter"):
+            menu.add_command(label=f"  potty  {bar(self.potty)}", state="disabled")
         menu.add_separator()
-        menu.add_command(label="🐟  Feed", command=self.act_feed)
+        feed_icon = "🥬" if SPECIES_DIET.get(self.species) == "herb" else "🐟"
+        menu.add_command(label=f"{feed_icon}  Feed", command=self.act_feed)
         menu.add_command(label="💧  Water", command=self.act_water)
         menu.add_command(label="🍬  Give a treat", command=self.act_treat)
 
         play = tk.Menu(menu, tearoff=0)
-        play.add_command(label="🏃  Zoomies", command=self.act_play)
-        play.add_command(label="🔴  Laser: stop" if self.laser else "🔴  Laser pointer",
-                         command=self.act_laser)
-        play.add_command(label="🧶  Put yarn away" if self.toy else "🧶  Toss the yarn",
-                         command=self.act_toy)
-        play.add_command(label="🤸  Do a trick", command=self.act_trick)
-        play.add_command(label="👋  Come here", command=self.act_come)
-        play.add_command(label="💤  Nap time", command=self.act_nap)
+        if self.can("zoomies"):
+            play.add_command(label="🏃  Zoomies", command=self.act_play)
+        if self.can("laser"):
+            play.add_command(label="🔴  Laser: stop" if self.laser else "🔴  Laser pointer",
+                             command=self.act_laser)
+        if self.can("toy"):
+            play.add_command(label="🧶  Put yarn away" if self.toy else "🧶  Toss the yarn",
+                             command=self.act_toy)
+        if self.can("flip"):
+            play.add_command(label="🤸  Do a trick", command=self.act_trick)
+        play.add_command(label="👋  Come here", command=self.act_come)      # universal
+        play.add_command(label="💤  Nap time", command=self.act_nap)        # universal
         menu.add_cascade(label="🎾  Play", menu=play)
 
         look = tk.Menu(menu, tearoff=0)
@@ -5347,6 +5434,8 @@ class VCat(tk.Tk):
         self.set_state("drink", "drink", 4.0)
 
     def act_play(self):
+        if not self.can("zoomies"):
+            return
         if not self._ensure_ground_state():
             return
         self.zoom_passes = 3
@@ -5505,6 +5594,8 @@ class VCat(tk.Tk):
             if self.state == "laser":
                 self.set_state("groom", "groom", 3)
             return
+        if not self.can("laser"):
+            return
         self.laser = Laser(self)
         self.laser_until = time.monotonic() + random.uniform(50, 90)
         self.play_snd("chirp")
@@ -5516,6 +5607,8 @@ class VCat(tk.Tk):
             self.toy = None
             if self.state in ("toy_chase", "toy_bat"):
                 self.set_state("idle", "idle", 2)
+            return
+        if not self.can("toy"):
             return
         cx, cy = self.cur
         x = min(max(cx, self.wa[0] + 30), self.wa[2] - 30)
