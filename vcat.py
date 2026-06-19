@@ -3857,6 +3857,16 @@ class VCat(tk.Tk):
         s = self.scale
         cos = COSTUMES.get(self.costume, COSTUMES["none"])
         spec = SPECIES.get(self.species, SPECIES["cat"])
+        ms = max(2, int(s) - 1)
+        self.icon_images = {k: frame_to_photo(v, ms) for k, v in ICONS.items()}
+        self.mouse_small = {1: frame_to_photo(CRITTER_FRAMES["flat"], ms),
+                            -1: frame_to_photo(CRITTER_FRAMES["flat"], ms, flip=True)}
+        # non-cat pets use their distinct pixel-art body sprite; the cat keeps its
+        # rich frame animations, costumes and fur colors
+        self.use_sprite = self.species != "cat" and self.species in ANIMAL_ART
+        if self.use_sprite:
+            self._build_pet_sprite(s)
+            return
         if self.species == "cat":
             pal = variant_pal(self.persist.get("color", "black"))
         else:
@@ -3870,10 +3880,6 @@ class VCat(tk.Tk):
         for name, rows in frames.items():
             self.images[(name, 1)] = frame_to_photo(rows, s, pal=pal)
             self.images[(name, -1)] = frame_to_photo(rows, s, flip=True, pal=pal)
-        ms = max(2, int(s) - 1)
-        self.icon_images = {k: frame_to_photo(v, ms) for k, v in ICONS.items()}
-        self.mouse_small = {1: frame_to_photo(CRITTER_FRAMES["flat"], ms),
-                            -1: frame_to_photo(CRITTER_FRAMES["flat"], ms, flip=True)}
         # accessory overlays: species feature (e.g. dragon wings) + costume,
         # composited so a costumed dragon still shows both
         self.acc_img = {}
@@ -3895,6 +3901,30 @@ class VCat(tk.Tk):
         self.mouth_item = None
         if getattr(self, "carrying", False):
             self.mouth_item = self.canvas.create_image(0, 0, image=self.mouse_small[1])
+
+    def _build_pet_sprite(self, s):
+        """Main pet rendered as its distinct pixel-art body (non-cat species)."""
+        grid, pal = ANIMAL_ART[self.species]
+        bs = max(1.0, s * ANIMAL_SPRITE_FACTOR)
+        self.body_img = {1: frame_to_photo(grid, bs, pal=pal),
+                         -1: frame_to_photo(grid, bs, flip=True, pal=pal)}
+        iw, ih = self.body_img[1].width(), self.body_img[1].height()
+        self.cw = max(iw, int(24 * s))
+        self.ch = ih + int(12 * s)              # headroom for bubbles/effects
+        # egg-spawn species still need the egg/hatch frames during incubation
+        self.images = {}
+        for n in ("egg1", "egg2", "eggcrack"):
+            self.images[(n, 1)] = frame_to_photo(FRAMES[n], s)
+            self.images[(n, -1)] = frame_to_photo(FRAMES[n], s, flip=True)
+        self.canvas.config(width=self.cw, height=self.ch)
+        self.canvas.delete("all")
+        self.acc_behind = self.acc_front = None
+        self.sprite_item = self.canvas.create_image(
+            self.cw // 2, self.ch, anchor="s",
+            image=self.body_img[getattr(self, "facing", 1)])
+        self.bubble = None
+        self.effects = []
+        self.mouth_item = None
 
     def _place(self):
         self.geometry(f"+{int(self.x - self.cw / 2 + self.sdx)}"
@@ -5523,19 +5553,22 @@ class VCat(tk.Tk):
         menu.add_cascade(label="🎾  Play", menu=play)
 
         look = tk.Menu(menu, tearoff=0)
-        cos = tk.Menu(look, tearoff=0)
-        labels = {"none": "no costume", "bat": "🦇 batcat", "spider": "🕷 spidercat",
-                  "wizard": "🧙 wizard", "king": "👑 king", "devil": "😈 devil"}
-        for key in ("none", "bat", "spider", "wizard", "king", "devil"):
-            cos.add_command(label=("●  " if self.costume == key else "    ") + labels[key],
-                            command=lambda k=key: self.act_costume(k))
-        look.add_cascade(label="🎭  Costume", menu=cos)
-        fur = tk.Menu(look, tearoff=0)
-        cur = self.persist.get("color", "black")
-        for key in ("black", "ginger", "gray", "snow", "choco"):
-            fur.add_command(label=("●  " if cur == key else "    ") + key,
-                            command=lambda k=key: self.act_color(k))
-        look.add_cascade(label="🎨  Fur", menu=fur)
+        # costumes & fur color only apply to the frame-based cat, not the
+        # fixed pixel-art bodies of the other species
+        if not getattr(self, "use_sprite", False):
+            cos = tk.Menu(look, tearoff=0)
+            labels = {"none": "no costume", "bat": "🦇 batcat", "spider": "🕷 spidercat",
+                      "wizard": "🧙 wizard", "king": "👑 king", "devil": "😈 devil"}
+            for key in ("none", "bat", "spider", "wizard", "king", "devil"):
+                cos.add_command(label=("●  " if self.costume == key else "    ") + labels[key],
+                                command=lambda k=key: self.act_costume(k))
+            look.add_cascade(label="🎭  Costume", menu=cos)
+            fur = tk.Menu(look, tearoff=0)
+            cur = self.persist.get("color", "black")
+            for key in ("black", "ginger", "gray", "snow", "choco"):
+                fur.add_command(label=("●  " if cur == key else "    ") + key,
+                                command=lambda k=key: self.act_color(k))
+            look.add_cascade(label="🎨  Fur", menu=fur)
         size = tk.Menu(look, tearoff=0)
         for label, s in (("smol", 2), ("normal", 3), ("big", 4),
                          ("huge", 6), ("giant", 8)):
@@ -6176,6 +6209,29 @@ class VCat(tk.Tk):
     # ---- drawing -----------------------------------------------------------------------
 
     def _draw(self):
+        if getattr(self, "use_sprite", False):
+            # show the egg for the whole egg stage (incl. while dragged/falling),
+            # not just the egg/hatch states; the body sprite is for after hatching
+            if self.state in ("egg", "hatch") or self.stage == "egg":
+                anim = self.anim if self.anim in ("egg", "hatch") else "egg"
+                frames, fps, loop = ANIMS.get(anim, ANIMS["egg"])
+                idx = int(self.state_t * fps)
+                idx = idx % len(frames) if loop else min(idx, len(frames) - 1)
+                self._gait_dy = 0.0
+                self.canvas.itemconfig(self.sprite_item,
+                                       image=self.images[(frames[idx], self.facing)])
+                self._place()
+                return
+            self._gait_dy = 0.0
+            if (self.surface_hwnd is None and self.perch is None
+                    and self.anim in ("walk", "run")):
+                gdy, _ = gait_render(self.species, self.anim, self.state_t, self.scale, True)
+                if abs(gdy) < 0.01:
+                    gdy = -abs(math.sin(self.state_t * 9)) * 1.5 * self.scale
+                self._gait_dy = gdy
+            self.canvas.itemconfig(self.sprite_item, image=self.body_img[self.facing])
+            self._place()
+            return
         # gait: a frog/bunny hops, a penguin waddles — but only on flat ground,
         # never while perched/climbing/airborne (would detach from the surface)
         anim = self.anim
