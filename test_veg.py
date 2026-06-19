@@ -64,4 +64,22 @@ st2 = vcat.load_state()
 d2 = st2["decor"][0]
 print("save round-trip: kind", d2["kind"], "variant", d2.get("variant"), "grow", d2.get("grow"))
 
+# --- growth stays visible even at the smallest pet size (no degenerate clamp) ---
+app.clear_animals(); app.decor = []
+g = vcat.Decor(app, "grass", app.x, grow=0.05); g.scale = 2
+g._render(); a = g.ch
+g.grow = 0.5; g._render(); b = g.ch
+g.grow = 1.0; g._render(); c = g.ch
+print("growth visible @scale2:", a < b < c, "| heights", a, b, c)
+
+# --- regrow doesn't rebuild pixel-identical frames while clamped ---
+g2 = vcat.Decor(app, "grass", app.x, grow=0.05); g2.scale = 2
+cnt = [0]; _orig = g2._render
+g2._render = lambda: (cnt.__setitem__(0, cnt[0] + 1), _orig())
+for _ in range(400):
+    g2.regrow(0.1)
+    if g2.grow >= 1.0:
+        break
+print("regrow renders (was ~18 identical):", cnt[0], "| <=10:", cnt[0] <= 10)
+
 app.quit_app(); print("ALL OK")

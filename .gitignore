@@ -13,9 +13,24 @@ venv/
 .idea/
 .vscode/
 
+# Claude Code local/personal settings (keep out of the public repo)
+.claude/settings.local.json
+
 # local previews / scratch
 shot*.png
 preview*.png
+scene_preview.png
 *_crop.png
 *_strip.png
 *_zoom.png
+*_diff.txt
+
+# ComfyUI asset-generation tooling (dev-only; comfy_gen.py holds a private LAN IP)
+comfy_gen.py
+pixelize.py
+gen_batch.py
+gen_assets_module.py
+convert_preview.py
+preview_ai.py
+scene_preview.py
+ai_assets/

@@ -1079,6 +1079,44 @@ for _name, _variants in VEG_VARIANTS.items():
             assert len(_r) == _w, f"veg {_name}#{_vi} row {_i}: ragged"
             assert all(ch in PAL for ch in _r), f"veg {_name}#{_vi} row {_i}: bad char"
 
+# Richer AI-generated scenery (ComfyUI/Qwen-Image -> pixel grids), if present.
+# VEG_ART[kind] = list of (grid_lines, palette) with a per-asset palette so the
+# detailed art needs no global-palette chars. Falls back to the hand-drawn art.
+try:
+    from vcat_assets import VEG_ART
+except Exception:
+    VEG_ART = {}
+
+# AI grids are taller (~22-46 cells) than the old hand-drawn ones, so each kind
+# renders at a fraction of the pet's scale to keep natural relative sizes.
+VEG_FACTOR = {"tree": 1.0, "bush": 0.72, "flower": 0.62, "grass": 0.5}
+
+
+def veg_variants(kind):
+    """List of (grid, pal) variants for a vegetation kind — AI art if available,
+    else the hand-drawn fallback (pal None -> render with the global PAL)."""
+    ai = VEG_ART.get(kind)
+    if ai:
+        return ai
+    hand = VEG_VARIANTS.get(kind)
+    if hand:
+        return [(g, None) for g in hand]
+    return None
+
+
+# validate the AI assets (per-asset palette; '.' is transparent). A malformed
+# regenerated module must degrade to the hand-drawn fallback, not crash startup.
+try:
+    for _k, _vs in VEG_ART.items():
+        for _vi, (_grid, _pal) in enumerate(_vs):
+            _w = len(_grid[0])
+            for _i, _r in enumerate(_grid):
+                assert len(_r) == _w, f"VEG_ART {_k}#{_vi} row {_i}: ragged"
+                assert all(c == "." or c in _pal for c in _r), \
+                    f"VEG_ART {_k}#{_vi} row {_i}: char not in palette"
+except Exception:
+    VEG_ART = {}     # malformed assets -> fall back to the hand-drawn vegetation
+
 # ---------------------------------------------------------------------------
 # Birds (fly across the top; the cat tries to catch them)
 # ---------------------------------------------------------------------------
@@ -1668,7 +1706,7 @@ def frame_to_photo(rows, scale, flip=False, pal=None):
     if flip:
         rows = [r[::-1] for r in rows]
     data = " ".join(
-        "{" + " ".join(pal[ch] for ch in row) + "}" for row in rows
+        "{" + " ".join(pal.get(ch, KEY) for ch in row) + "}" for row in rows
     )
     img = tk.PhotoImage(width=len(rows[0]), height=len(rows))
     img.put(data)
@@ -3152,7 +3190,7 @@ class Decor:
         self.uses = uses               # litter-box dirtiness (uses since scoop)
         self.lushness = 100.0          # food in grass/plant/bush (regrows over time)
         # pick a random look once; persisted so it stays the same across runs
-        pool = VEG_VARIANTS.get(kind)
+        pool = veg_variants(kind)
         if pool:
             self.variant = (variant if isinstance(variant, int) and 0 <= variant < len(pool)
                             else random.randrange(len(pool)))
@@ -3185,29 +3223,41 @@ class Decor:
         self.canvas.bind("<ButtonPress-3>", self._menu)
         self._place()
 
-    def _art(self):
-        """The art grid this decor currently shows (its random variant, if any)."""
-        pool = VEG_VARIANTS.get(self.kind)
+    def _variant(self):
+        """(grid, palette) for this decor's current variant; pal None -> global PAL."""
+        pool = veg_variants(self.kind)
         if pool:
             return pool[self.variant % len(pool)]
-        return DECOR_ART[self.kind]
+        return DECOR_ART[self.kind], None
+
+    def _art(self):
+        return self._variant()[0]
+
+    def _pal(self):
+        return self._variant()[1]
 
     def _eff_scale(self):
-        """Pixel scale, shrunk while a plant is still growing in."""
+        """Pixel scale: per-kind sizing for the (taller) AI art, shrunk while growing."""
+        s = float(self.scale)
+        if self._pal() is not None:                 # AI asset -> apply per-kind sizing
+            s *= VEG_FACTOR.get(self.kind, 0.7)
+        s = max(1.0, s)                             # floor the FULL-GROWN size first...
         if self.kind in VEG_GROW_KINDS and self.grow < 1.0:
-            return max(1.0, self.scale * (0.32 + 0.68 * self.grow))
-        return float(self.scale)
+            s *= (0.32 + 0.68 * self.grow)         # ...then shrink the sprout (may be <1)
+        return s
 
     def _render(self):
         """(Re)build the photo at the current variant + growth and resize the box."""
-        art = self._art()
+        art, pal = self._variant()
         self.gw, self.gh = len(art[0]), len(art)
-        self.img = frame_to_photo(art, self._eff_scale())
+        eff = self._eff_scale()
+        self.img = frame_to_photo(art, eff, pal=pal)
         self.cw, self.ch = self.img.width(), self.img.height()
         self.canvas.config(width=self.cw, height=self.ch)
         self.canvas.coords(self.item, self.cw // 2, self.ch)
         self.canvas.itemconfig(self.item, image=self.img)
         self._drawn_grow = self.grow
+        self._drawn_ratio = _scale_ratio(eff)      # skip re-renders that look identical
         # re-clamp on every (re)render so a plant that grows wider near a screen
         # edge stays fully on-screen instead of spilling off
         if hasattr(self, "x"):
@@ -3270,7 +3320,12 @@ class Decor:
         if self.kind in VEG_GROW_KINDS and self.grow < 1.0:
             self.grow = min(1.0, self.grow + dt / VEG_GROW_SECS.get(self.kind, 60.0))
             if self.grow - self._drawn_grow >= 0.05 or self.grow >= 1.0:
-                self._render()
+                # only rebuild if the plant would actually look different (the
+                # scale ratio changed) — otherwise just note the new growth
+                if _scale_ratio(self._eff_scale()) != getattr(self, "_drawn_ratio", None):
+                    self._render()
+                else:
+                    self._drawn_grow = self.grow
 
     def destroy(self):
         try:

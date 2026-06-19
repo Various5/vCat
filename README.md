@@ -6,9 +6,11 @@ mess if it has no litter box, and **grows up in real time like a Tamagotchi** �
 from an egg or a stork delivery, through baby → kid → teen → adult → elder,
 and on into a new generation.
 
-It's one self-contained Python file (`vcat.py`, tkinter only) packaged into a
-single `.exe` with PyInstaller. Pixel art and 8-bit sounds are generated in
-code — no asset files.
+It's `vcat.py` (tkinter only) packaged into a single `.exe` with PyInstaller.
+Pixel art and 8-bit sounds are generated in code — no binary asset files. The
+richer environment art is AI-designed (Stable-Diffusion via ComfyUI), converted
+offline into pixel grids and shipped as a generated `vcat_assets.py` module
+(plain text); if it's absent the app falls back to hand-drawn vegetation.
 
 ## Features
 
@@ -36,10 +38,12 @@ code — no asset files.
 - **Customise** — costumes (batcat 🦇, spidercat 🕷, wizard 🧙, king 👑,
   devil 😈), fur colors, size, and **name your pets** (saved per machine).
 - **A living ecosystem** — add a flock of animals (the old kitten is retired). Plant
-  grass, flowers, bushes and trees 🌿🌸🌳 — each comes in **random variants** and
-  **grows in real time** from a sprout to full size. Herbivores graze grass and
-  browse bushes; carnivores hunt herbivores; everyone ages, breeds and (in hardcore
-  mode) can die — a self-sustaining food chain that runs even when you're not feeding it.
+  grass, flowers, bushes and trees 🌿🌸🌳 — lush **AI-designed pixel scenery** (oak,
+  pine and cherry-blossom trees; leafy, berry and flowering bushes; tulips, daisies
+  and wildflowers), each in **random variants** that **grow in real time** from a
+  sprout to full size. Herbivores graze grass and browse bushes; carnivores hunt
+  herbivores; everyone ages, breeds and (in hardcore mode) can die — a self-sustaining
+  food chain that runs even when you're not feeding it.
 - **Right-click any animal** for a tidy, per-creature menu: pet it, feed it, and give
   it commands that suit its kind — send a herbivore to **graze**, a carnivore to
   **hunt**, an adult to **find a mate**, or just tell it to **come here / play / rest**.
