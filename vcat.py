@@ -566,6 +566,16 @@ ICON_HEART = [
     "...RR...",
     "........",
 ]
+ICON_VEG = [          # a little carrot, for what the herbivores would rather eat
+    "..l.v...",
+    ".vlvv...",
+    "..OOO...",
+    "..OOO...",
+    "...OO...",
+    "...O....",
+    "........",
+    "........",
+]
 ICON_ZZZ = [
     "........",
     ".WWWW...",
@@ -696,9 +706,61 @@ CRITTER_FRAMES = {
         "PPGGGGGGGG..",
         ".GGGGGGGGGP.",
     ],
+    "bug1": [
+        "............",
+        "...n.KK.n...",
+        "...KKKKKK...",
+        "..KKKxKKK...",
+        "..KKKxKKK...",
+        "..KKKKKKK...",
+        ".K.K.KK.K.K.",
+        "............",
+    ],
+    "bug2": [
+        "............",
+        "...n.KK.n...",
+        "...KKKKKK...",
+        "..KKKxKKK...",
+        "..KKKxKKK...",
+        "..KKKKKKK...",
+        "..KK.KK.KK..",
+        "............",
+    ],
+    "bugflat": [
+        "............",
+        "............",
+        "............",
+        "............",
+        "...n....n...",
+        "..KKKxxKKK..",
+        ".KKKKKKKKKK.",
+        ".KKKKKKKKKK.",
+    ],
 }
 
-ICONS = {"fish": ICON_FISH, "drop": ICON_DROP, "heart": ICON_HEART, "zzz": ICON_ZZZ}
+# the wandering critter comes in a few flavours; bug is a distinct silhouette,
+# vole/field-mouse are recolours of the mouse. pal overrides recolour 'G'.
+CRITTER_TYPES = {
+    "mouse": {"a": "mouse1", "b": "mouse2", "flat": "flat", "pal": None},
+    "vole":  {"a": "mouse1", "b": "mouse2", "flat": "flat",
+              "pal": {"G": "#9a6b4a", "P": "#e8b0a0"}},   # brown field mouse
+    "white": {"a": "mouse1", "b": "mouse2", "flat": "flat",
+              "pal": {"G": "#e8e8ee"}},                   # white mouse
+    "bug":   {"a": "bug1", "b": "bug2", "flat": "bugflat", "pal": None},
+}
+
+# birds come in several colours so the sky isn't all one species (B = body)
+BIRD_PALS = [
+    None,                                  # sky-blue (default)
+    {"B": "#e0584a"},                      # robin red
+    {"B": "#f0c83a"},                      # canary yellow
+    {"B": "#6ad0a0"},                      # green finch
+    {"B": "#c98ae0"},                      # violet exotic
+    {"B": "#eef0f4"},                      # white dove
+]
+
+ICONS = {"fish": ICON_FISH, "drop": ICON_DROP, "heart": ICON_HEART, "zzz": ICON_ZZZ,
+         "veg": ICON_VEG}
 
 # sanity-check the art at import time
 for _name, _f in FRAMES.items():
@@ -861,6 +923,199 @@ for _name, _f in DECOR_ART.items():
     for _i, _r in enumerate(_f):
         assert len(_r) == _w, f"decor {_name} row {_i}: ragged ({len(_r)} vs {_w})"
         assert all(ch in PAL for ch in _r), f"decor {_name} row {_i}: bad char"
+
+
+# ---------------------------------------------------------------------------
+# Vegetation: every patch/tree/bush/flower gets a random variant when placed
+# and GROWS from a sprout to full size over time.
+# ---------------------------------------------------------------------------
+
+def _veg(rows):
+    """Pad a vegetation grid to a rectangle so hand-drawn art can't go ragged."""
+    w = max(len(r) for r in rows)
+    return [r.ljust(w, ".") for r in rows]
+
+
+VEG_VARIANTS = {
+    "grass": [
+        DECOR_ART["grass"],                       # the original clumpy patch
+        _veg([
+            ".l...l....l..",
+            "lvl.lvl..lvl.",
+            "vvl.vvl.Rvvl.",
+            "vvvlvvvlyvvvl",
+            "vvvvvvvvvvvvv",
+            "jvjjvjjvjjvjj",
+            "tjtjtjtjtjtjt",
+        ]),
+        _veg([
+            "..l.......l....",
+            ".lvl.W...lvl...",
+            ".vvl.y.W.vvl.W.",
+            "lvvvl.lyl.vvvly",
+            "vvvvvllvvlvvvvv",
+            "jvjvjvjvjvjvjvj",
+            "tjtjtjtjtjtjtjt",
+        ]),
+    ],
+    "bush": [
+        _veg([
+            "...llvvvll...",
+            "..lvvvvvvvl..",
+            ".lvvvvvvvvvl.",
+            "lvvvvvvvvvvvl",
+            "lvvvjvvvjvvvl",
+            ".jvvvvvvvvvj.",
+            "..jjvvvvvjj..",
+            "...jjjvjjj...",
+            ".....ttt.....",
+        ]),
+        _veg([                                    # berry bush
+            "...lvvvvl...",
+            "..lvvRvvvl..",
+            ".lvvvvvRvvl.",
+            "lvRvvvvvvvRl",
+            "lvvvvRvvvvvl",
+            ".jvvvvvRvvj.",
+            "..jvRvvvvj..",
+            "...jjvvjj...",
+            "....nttn....",
+        ]),
+        _veg([                                    # flowering bush
+            "...lvyvvl...",
+            "..lvRvvyvl..",
+            ".lvvvyvvRvl.",
+            "lvyvvvvvyvvl",
+            "lvvvRvvvvvvl",
+            ".jvvvyvRvvj.",
+            "..jvvvvyvj..",
+            "...jjvvjj...",
+            "....nttn....",
+        ]),
+    ],
+    "flower": [
+        _veg([                                    # tulips
+            ".R...O...z...R..",
+            "RRR.OOO.zzz.RRR.",
+            ".v...v...v...v..",
+            ".v.l.v.l.v.l.v.l",
+            ".vvl.vvl.vvl.vvl",
+            ".v...v...v...v..",
+            "tjtjtjtjtjtjtjtj",
+        ]),
+        _veg([                                    # daisies
+            ".W...W...W..",
+            "WyW.WyW.WyW.",
+            ".W.l.W.l.W.l",
+            ".v.l.v.l.v.l",
+            ".vvl.vvl.vvl",
+            ".v...v...v..",
+            "tjtjtjtjtjtj",
+        ]),
+        _veg([                                    # mixed wildflowers
+            ".y..R...z...W.",
+            "lyl.RRR.zzz.WW.",
+            ".v...v...v...v.",
+            "lvl.lv..lvl.lv.",
+            ".v...vl..v...v.",
+            ".v...v...v...v.",
+            "tjtjtjtjtjtjtjt",
+        ]),
+    ],
+    "tree": [
+        DECOR_ART["tree"],                        # the original round tree
+        _veg([                                    # tall slim tree
+            "...llvvj...",
+            "..lvvvvvj..",
+            ".lvvvvvvvj.",
+            "lvvvvvvvvvj",
+            ".lvvvvvvvj.",
+            "..lvvvvvj..",
+            ".lvvvvvvvj.",
+            "lvvvvvvvvvj",
+            ".lvvvvvvvj.",
+            "..jvvvvvj..",
+            "...jvvvj...",
+            "....ntn....",
+            "....ntn....",
+            "....ntn....",
+            "...nnttn...",
+            "..nnnnnnnn.",
+        ]),
+        _veg([                                    # wide bushy tree
+            "...lvvj..llvvj...",
+            "..lvvvvjlvvvvvj..",
+            ".lvvvvvvvvvvvvvj.",
+            "lvvvvvvvvvvvvvvvj",
+            "lvvvllvvvvvllvvvj",
+            "lvvvvvvvvvvvvvvvj",
+            ".jvvvvvvvvvvvvvj.",
+            "..jjvvvvvvvvvjj..",
+            "...jjjvvvvvjjj...",
+            ".....jjvvjjj.....",
+            "........ntn......",
+            "........ntn......",
+            ".......nnttn.....",
+            "......nnnnnnnn...",
+        ]),
+    ],
+}
+
+# bush & flower are brand-new kinds — register a base grid + menu metadata so
+# they validate and behave everywhere the older decor kinds do.
+DECOR_ART.setdefault("bush", VEG_VARIANTS["bush"][0])
+DECOR_ART.setdefault("flower", VEG_VARIANTS["flower"][0])
+DECOR_META["bush"] = {"label": "🌳  Bush", "act": "scenery"}
+DECOR_META["flower"] = {"label": "🌸  Flowers", "act": "scenery"}
+
+VEG_GROW_KINDS = set(VEG_VARIANTS)          # have variants AND grow in over time
+EDIBLE_VEG = ("grass", "plant", "bush")     # herbivores graze/browse these
+VEG_GROW_SECS = {"grass": 18.0, "flower": 24.0, "bush": 40.0, "tree": 85.0}
+
+for _name, _variants in VEG_VARIANTS.items():
+    for _vi, _grid in enumerate(_variants):
+        _w = len(_grid[0])
+        for _i, _r in enumerate(_grid):
+            assert len(_r) == _w, f"veg {_name}#{_vi} row {_i}: ragged"
+            assert all(ch in PAL for ch in _r), f"veg {_name}#{_vi} row {_i}: bad char"
+
+# Richer AI-generated scenery (ComfyUI/Qwen-Image -> pixel grids), if present.
+# VEG_ART[kind] = list of (grid_lines, palette) with a per-asset palette so the
+# detailed art needs no global-palette chars. Falls back to the hand-drawn art.
+try:
+    from vcat_assets import VEG_ART
+except Exception:
+    VEG_ART = {}
+
+# AI grids are taller (~22-46 cells) than the old hand-drawn ones, so each kind
+# renders at a fraction of the pet's scale to keep natural relative sizes.
+VEG_FACTOR = {"tree": 1.0, "bush": 0.72, "flower": 0.62, "grass": 0.5}
+
+
+def veg_variants(kind):
+    """List of (grid, pal) variants for a vegetation kind — AI art if available,
+    else the hand-drawn fallback (pal None -> render with the global PAL)."""
+    ai = VEG_ART.get(kind)
+    if ai:
+        return ai
+    hand = VEG_VARIANTS.get(kind)
+    if hand:
+        return [(g, None) for g in hand]
+    return None
+
+
+# validate the AI assets (per-asset palette; '.' is transparent). A malformed
+# regenerated module must degrade to the hand-drawn fallback, not crash startup.
+try:
+    for _k, _vs in VEG_ART.items():
+        for _vi, (_grid, _pal) in enumerate(_vs):
+            _w = len(_grid[0])
+            for _i, _r in enumerate(_grid):
+                assert len(_r) == _w, f"VEG_ART {_k}#{_vi} row {_i}: ragged"
+                assert all(c == "." or c in _pal for c in _r), \
+                    f"VEG_ART {_k}#{_vi} row {_i}: char not in palette"
+except Exception:
+    VEG_ART = {}     # malformed assets -> fall back to the hand-drawn vegetation
 
 # ---------------------------------------------------------------------------
 # Birds (fly across the top; the cat tries to catch them)
@@ -1136,17 +1391,42 @@ SPECIES_EARS = {
 }
 
 
-def _heads_for(ears):
-    return (ears + _FACE, ears + _FACE_BLINK, ears + _FACE_SAD, ears + _FACE_MAD)
+# muzzle/snout/beak per species (10x5) so they don't all wear a cat's face.
+# row 2 is the eye row (swapped per mood); rows 3-4 are the species' nose/mouth.
+SPECIES_FACE = {
+    "chick":   [".KKKKKKKK.", "KKKKKKKKKK", "KEWKKKKWEK", "KKKOOOOKKK", ".KKOOOOKK."],
+    "penguin": [".KKKKKKKK.", "KKKKKKKKKK", "KEWKKKKWEK", "KKKOOOOKKK", ".KKOOOOKK."],
+    "pig":     [".KKKKKKKK.", "KKKKKKKKKK", "KEWKKKKWEK", "KKPPPPPPKK", "KKPDPPDPKK"],
+    "cow":     [".KKKKKKKK.", "KKKKKKKKKK", "KEWKKKKWEK", "KKWWWWWWKK", "KKWDWWDWKK"],
+    "dog":     [".KKKKKKKK.", "KKKKKKKKKK", "KEWKKKKWEK", "KKKWWWWKKK", "KKKKDDKKKK"],
+    "fox":     [".KKKKKKKK.", "KKKKKKKKKK", "KEWKKKKWEK", "KKKKWWKKKK", "KKKKDDKKKK"],
+    "bunny":   [".KKKKKKKK.", "KKKKKKKKKK", "KEWKKKKWEK", "KKKDPPDKKK", "KKKKWWKKKK"],
+    "frog":    [".KKKKKKKK.", "KKKKKKKKKK", "KEWKKKKWEK", "KKKKKKKKKK", "KWWWWWWWWK"],
+}
+
+
+def _faces_for(face):
+    """Derive the (normal, blink, sad, mad) faces from a species' normal face by
+    swapping only the eye row, so the muzzle/beak stays put across moods."""
+    blink = face[:2] + ["KDDKKKKDDK"] + face[3:]
+    sad = face[:2] + ["KEEKKKKEEK"] + face[3:]
+    mad = face[:2] + ["KEKKKKKKEK"] + face[3:]
+    return (face, blink, sad, mad)
+
+
+def _heads_for(ears, faces=None):
+    f, b, s, m = faces or (_FACE, _FACE_BLINK, _FACE_SAD, _FACE_MAD)
+    return (ears + f, ears + b, ears + s, ears + m)
 
 
 def species_frame_overrides(species):
-    """Rebuild the head-dependent frames with this species' ears."""
+    """Rebuild the head-dependent frames with this species' ears + muzzle."""
     if species == "cat" or species not in SPECIES_EARS:
         return {}
     global HEAD, HEAD_BLINK, HEAD_SAD, HEAD_MAD
     save = (HEAD, HEAD_BLINK, HEAD_SAD, HEAD_MAD)
-    HEAD, HEAD_BLINK, HEAD_SAD, HEAD_MAD = _heads_for(SPECIES_EARS[species])
+    faces = _faces_for(SPECIES_FACE[species]) if species in SPECIES_FACE else None
+    HEAD, HEAD_BLINK, HEAD_SAD, HEAD_MAD = _heads_for(SPECIES_EARS[species], faces)
     try:
         ov = {
             "sit": _frame_sit(), "sit_tail": _frame_sit(tail="up"),
@@ -1248,6 +1528,75 @@ SPECIES_DIET = {
     "chick": "herb", "panda": "herb",
 }
 
+SPECIES_EMOJI = {
+    "cat": "🐈", "dog": "🐕", "dragon": "🐉", "bunny": "🐇", "fox": "🦊",
+    "goat": "🐐", "pig": "🐷", "cow": "🐄", "bear": "🐻", "panda": "🐼",
+    "frog": "🐸", "penguin": "🐧", "chick": "🐤", "hamster": "🐹",
+}
+
+# how each animal MOVES — so a frog doesn't trot like a cat
+SPECIES_GAIT = {
+    "bunny": "hop", "frog": "hop", "hamster": "hop", "chick": "hop",
+    "penguin": "waddle", "pig": "waddle", "goat": "waddle",
+    "cow": "waddle", "bear": "waddle", "panda": "waddle",
+    "dragon": "flutter",
+}                                  # cat / dog / fox fall through to a normal walk
+
+# What each species naturally DOES, so a cow doesn't pounce on birds. These gate
+# the main pet's cat-built behaviours; anything not granted simply never fires,
+# leaving the universal set (idle/wander/lie/groom/sleep/beg/eat-from-bowl/come/nap).
+#   hunt     - stalk & pounce the cursor and the wandering critter (predators)
+#   birds    - leap to snatch a passing bird out of the air (agile predators)
+#   toy      - chase & bat the yarn ball
+#   laser    - chase the laser dot
+#   climb    - scale the side of a window
+#   scratch  - claw window edges / scratch post, paw desktop icons & the plant
+#   box      - hop into and perch on the cardboard box
+#   tailchase- spin chasing its own tail
+#   zoomies  - sudden sprint back and forth
+#   flip     - backflip trick
+#   litter   - uses the litter box / relieves itself on the floor
+SPECIES_TRAITS = {
+    "cat":     {"hunt", "birds", "toy", "laser", "climb", "scratch", "box",
+                "tailchase", "zoomies", "flip", "litter"},
+    "dog":     {"hunt", "birds", "toy", "laser", "tailchase", "zoomies", "flip"},
+    "fox":     {"hunt", "birds", "climb", "tailchase", "zoomies", "flip"},
+    "dragon":  {"hunt", "birds", "zoomies", "flip"},
+    "bear":    {"hunt", "climb"},
+    "frog":    {"hunt"},
+    "goat":    {"climb", "zoomies"},
+    "bunny":   {"box", "zoomies"},
+    "hamster": {"box", "climb", "zoomies"},
+    "panda":   {"climb"},
+    "penguin": set(),
+    "pig":     set(),
+    "cow":     set(),
+    "chick":   set(),
+}
+
+
+def traits_of(species):
+    return SPECIES_TRAITS.get(species, set())
+
+
+def gait_of(species):
+    return SPECIES_GAIT.get(species, "walk")
+
+
+def gait_render(species, anim, t, scale, moving):
+    """Return (vertical_offset, anim_override) so movement reads per-species."""
+    g = gait_of(species)
+    if g == "flutter":             # birds/dragons hover and bob, always airborne
+        off = -(3.0 + 1.6 * math.sin(t * 11)) * scale
+        return off, ("sit" if anim in ("walk", "run", "idle") else None)
+    if not moving:
+        return 0.0, None
+    if g == "hop":                 # spring up in arcs; tuck the legs (no walk cycle)
+        return -abs(math.sin(t * 7.5)) * 7 * scale, "crouch1"
+    if g == "waddle":              # low rocking bob
+        return -abs(math.sin(t * 9)) * 2.2 * scale, None
+    return 0.0, None
+
 # breeding-unlock abilities (mutations passed to / rolled for babies)
 ABILITIES = ("swift", "big", "tiny", "glow")
 
@@ -1335,6 +1684,9 @@ ANIMS = {
     "birdwatch": (["crouch1", "crouch1", "crouch2"], 3, True),
     "egg":     (["egg1", "egg2"], 2.5, True),
     "hatch":   (["eggcrack", "egg2", "eggcrack"], 6, True),
+    # static single-frame poses used as gait_render anim overrides
+    "sit":     (["sit"], 1, True),       # flutter (dragon hovers in a sit pose)
+    "crouch1": (["crouch1"], 1, True),   # hop (legs tucked between bounces)
 }
 
 
@@ -1354,7 +1706,7 @@ def frame_to_photo(rows, scale, flip=False, pal=None):
     if flip:
         rows = [r[::-1] for r in rows]
     data = " ".join(
-        "{" + " ".join(pal[ch] for ch in row) + "}" for row in rows
+        "{" + " ".join(pal.get(ch, KEY) for ch in row) + "}" for row in rows
     )
     img = tk.PhotoImage(width=len(rows[0]), height=len(rows))
     img.put(data)
@@ -1759,6 +2111,16 @@ def load_state():
                     u = d.get("uses")
                     if isinstance(u, int) and not isinstance(u, bool):
                         entry["uses"] = max(0, min(99, u))
+                    v = d.get("variant")
+                    if isinstance(v, int) and not isinstance(v, bool):
+                        entry["variant"] = max(0, min(9, v))
+                    elif d["kind"] in VEG_GROW_KINDS:
+                        entry["variant"] = 0            # legacy plant: keep original art
+                    gr = d.get("grow")
+                    if isinstance(gr, (int, float)) and not isinstance(gr, bool):
+                        entry["grow"] = max(0.05, min(1.0, float(gr)))
+                    elif d["kind"] in VEG_GROW_KINDS:
+                        entry["grow"] = 1.0             # legacy plant: was placed full-grown
                     out.append(entry)
             state["decor"] = out
         mess = data.get("messes")
@@ -1859,10 +2221,14 @@ class Critter:
         self.canvas = tk.Canvas(self.win, width=self.cw, height=self.ch,
                                 bg=KEY, highlightthickness=0, bd=0)
         self.canvas.pack()
+        self.type = random.choice(list(CRITTER_TYPES))
+        self.fr = CRITTER_TYPES[self.type]
+        self._pal = dict(PAL, **self.fr["pal"]) if self.fr["pal"] else None
         self.images = {}
         for name in CRITTER_FRAMES:
-            self.images[(name, 1)] = frame_to_photo(CRITTER_FRAMES[name], s)
-            self.images[(name, -1)] = frame_to_photo(CRITTER_FRAMES[name], s, flip=True)
+            self.images[(name, 1)] = frame_to_photo(CRITTER_FRAMES[name], s, pal=self._pal)
+            self.images[(name, -1)] = frame_to_photo(CRITTER_FRAMES[name], s, flip=True,
+                                                     pal=self._pal)
         self.item = self.canvas.create_image(self.cw // 2, self.ch, anchor="s")
         wa = app.wa
         self.dir = random.choice((1, -1))
@@ -1904,7 +2270,7 @@ class Critter:
                 self.despawn()
                 return
         moving = self.pause_t <= 0
-        frame = "mouse2" if moving and int(self.anim_t * 12) % 2 else "mouse1"
+        frame = self.fr["b"] if moving and int(self.anim_t * 12) % 2 else self.fr["a"]
         self.canvas.itemconfig(self.item, image=self.images[(frame, self.dir)])
         self._place()
 
@@ -1919,7 +2285,7 @@ class Critter:
     def drop_at(self, x, y):
         self.caught = True
         self.x, self.y = float(x), float(y)
-        self.canvas.itemconfig(self.item, image=self.images[("flat", self.dir)])
+        self.canvas.itemconfig(self.item, image=self.images[(self.fr["flat"], self.dir)])
         self._place()
         self.win.deiconify()
         self.win.attributes("-topmost", True)
@@ -1929,10 +2295,11 @@ class Critter:
         self.cw, self.ch = 14 * s, 10 * s
         self.canvas.config(width=self.cw, height=self.ch)
         for name in CRITTER_FRAMES:
-            self.images[(name, 1)] = frame_to_photo(CRITTER_FRAMES[name], s)
-            self.images[(name, -1)] = frame_to_photo(CRITTER_FRAMES[name], s, flip=True)
+            self.images[(name, 1)] = frame_to_photo(CRITTER_FRAMES[name], s, pal=self._pal)
+            self.images[(name, -1)] = frame_to_photo(CRITTER_FRAMES[name], s, flip=True,
+                                                     pal=self._pal)
         self.canvas.coords(self.item, self.cw // 2, self.ch)
-        frame = "flat" if (self.caught and self.dropped_t is not None) else "mouse1"
+        frame = self.fr["flat"] if (self.caught and self.dropped_t is not None) else self.fr["a"]
         self.canvas.itemconfig(self.item, image=self.images[(frame, self.dir)])
         if not self.caught or self.dropped_t is not None:
             self._place()
@@ -2369,6 +2736,8 @@ class Animal:
         self.jump = None
         self.breed_cd = random.uniform(25, 60)
         self.want_baby = None        # set to a mate when a birth should happen
+        self.urge = None             # right-click command (graze/hunt/mate/come/play/rest)
+        self.urge_t = 0.0
         self.effects = []
         self.pressxy = None
         self.dragging = False
@@ -2499,7 +2868,8 @@ class Animal:
             self.y = g
 
         # --- decide ---
-        if self.state in ("idle", "walk", "run", "graze", "sleep", "lie"):
+        if self.state in ("idle", "walk", "run", "graze", "sleep", "lie",
+                          "look", "groom", "stretch", "play"):
             self._brain(dt)
         elif self.state == "eat":
             if self.state_t >= self.plan:
@@ -2509,7 +2879,7 @@ class Animal:
 
     def _brain(self, dt):
         a = self.app
-        # 1) flee a predator (herbivores only)
+        # 1) flee a predator (herbivores only) — survival always wins
         if self.diet == "herb":
             threat = a.nearest_threat(self)
             if threat is not None:
@@ -2518,6 +2888,9 @@ class Animal:
                 self.x += self.facing * 110 * self._swift() * self.scale / 3 * dt
                 self._clamp()
                 return
+        # 1b) a player-issued command (right-click) takes priority over autopilot
+        if self.urge and self._do_urge(dt):
+            return
         # 2) eat when hungry
         if self.hunger < 45:
             if self.diet == "herb":
@@ -2560,26 +2933,136 @@ class Animal:
                     self._heart()
                     self.set("idle", "idle", 2)
                 return
-        # 4) idle / wander / nap
+        # 4) lots of little idle behaviours so a flock never looks static
         if self.state_t >= self.plan:
             r = random.random()
-            if r < 0.4:
+            if r < 0.22:
                 self.set("idle", "idle", random.uniform(2, 5))
                 if random.random() < 0.5:
                     self.facing = random.choice((1, -1))
-            elif r < 0.6:
-                self.set("lie", "lie", random.uniform(3, 7))
-            elif r < 0.72 and self.stage() != "baby":
+            elif r < 0.34:
+                self.set("look", "blink", random.uniform(1.5, 3))   # glance around
+            elif r < 0.48:
+                self.set("groom", "groom", random.uniform(2, 4))
+            elif r < 0.58:
+                self.set("lie", "lie", random.uniform(3, 8))
+            elif r < 0.66 and self.stage() != "baby":
+                self.set("stretch", "stretch", 1.3)
+            elif r < 0.76:
+                self.set("play", "tailchase", random.uniform(1.6, 3))  # zoomy play
+            elif r < 0.85 and self.stage() != "baby":
                 self.set("sleep", "sleep", random.uniform(8, 20))
             else:
-                self.target = min(max(self.x + random.uniform(-200, 200),
+                self.target = min(max(self.x + random.uniform(-220, 220),
                                       a.wa[0] + 16), a.wa[2] - 16)
                 self.set("walk", "walk", 8)
+        elif self.state == "look":
+            if random.random() < 0.04:
+                self.facing = -self.facing
+            if self.state_t >= self.plan:
+                self.set("idle", "idle", random.uniform(1, 3))
+        elif self.state in ("groom", "stretch", "play"):
+            if self.state == "play":
+                self.facing = 1 if int(self.state_t * 3) % 2 == 0 else -1
+            if self.state_t >= self.plan:
+                self.set("idle", "idle", random.uniform(1, 3))
         elif self.state == "walk":
             if abs(self.target - self.x) < 5:
                 self.set("idle", "idle", random.uniform(1.5, 4))
             else:
                 self._approach(self.target, 40)
+
+    def _do_urge(self, dt):
+        """Carry out a player command from the right-click menu. Returns True if
+        it consumed this tick (so tick() should stop here), False if the urge is
+        finished / not applicable so the normal brain can take over."""
+        a = self.app
+        self.urge_t -= dt
+        if self.urge_t <= 0:
+            self.urge = None
+            return False
+        u = self.urge
+        if u == "graze":
+            if self.diet != "herb":
+                self.urge = None
+                return False
+            food = a.nearest_food(self.x)
+            if food is None:
+                self._fx("?", -18, 0.8)
+                self.urge = None
+                return False
+            if abs(food.x - self.x) > 12 * self.scale:
+                self._approach(food.x, 90)
+                self.anim = "walk"
+            else:
+                self.set("graze", "munch", 1.6)
+                food.graze()
+                self.hunger = min(100.0, self.hunger + 28)
+                self.urge = None     # one commanded bite; autopilot eats on if hungry
+            return True
+        if u == "hunt":
+            if self.diet != "carn":
+                self.urge = None
+                return False
+            prey = a.nearest_prey(self)
+            if prey is None:
+                self._fx("?", -18, 0.8)
+                self.urge = None
+                return False
+            if abs(prey.x - self.x) > 14 * self.scale:
+                self._approach(prey.x, 130)
+                self.anim = "run"
+            else:
+                prey._die(eaten=True)
+                self.hunger = 100.0
+                self._fx("✦", -20, 0.6)
+                a.play_snd(self.voice())
+                self.set("eat", "bat", 1.2)
+                self.urge = None
+            return True
+        if u == "mate":
+            if not (self.gender == "f" and self.is_adult() and self.hunger > 60
+                    and self.breed_cd <= 0 and len(a.animals) < a.animal_cap):
+                self._fx("?", -18, 0.8)
+                self.urge = None
+                return False
+            mate = a.nearest_mate(self)
+            if mate is None:
+                self._fx("?", -18, 0.8)
+                self.urge = None
+                return False
+            if abs(mate.x - self.x) > 16 * self.scale:
+                self._approach(mate.x, 80)
+                self.anim = "walk"
+            else:
+                self.want_baby = mate
+                self.breed_cd = random.uniform(60, 120)
+                mate.breed_cd = random.uniform(60, 120)
+                self.hunger -= 20
+                self._heart()
+                self.set("idle", "idle", 2)
+                self.urge = None
+            return True
+        if u == "come":
+            cx = min(max(float(a.cur[0]), a.wa[0] + 12), a.wa[2] - 12)
+            if abs(cx - self.x) > 10 * self.scale:
+                self._approach(cx, 110)
+                self.anim = "run"
+                return True
+            self._heart()
+            self.set("look", "blink", 1.5)
+            self.urge = None
+            return True
+        if u == "play":
+            self.set("play", "tailchase", random.uniform(2, 3.5))
+            self.urge = None
+            return True
+        if u == "rest":
+            self.set("sleep", "sleep", random.uniform(10, 25))
+            self.urge = None
+            return True
+        self.urge = None
+        return False
 
     def _approach(self, tx, spd):
         self.facing = 1 if tx > self.x else -1
@@ -2622,11 +3105,16 @@ class Animal:
                 self.effects.remove(fx)
 
     def _draw(self):
-        frames, fps, loop = ANIMS.get(self.anim, ANIMS["idle"])
+        moving = self.anim in ("walk", "run")
+        gdy, anim2 = gait_render(self.species, self.anim, self.state_t,
+                                 self.scale, moving)
+        self._gait_dy = gdy
+        anim = anim2 or self.anim
+        frames, fps, loop = ANIMS.get(anim, ANIMS["idle"])
         idx = int(self.state_t * fps)
         idx = idx % len(frames) if loop else min(idx, len(frames) - 1)
         self.canvas.itemconfig(self.item, image=self.images[(frames[idx], self.facing)])
-        hide = self.anim in _ACC_HIDE_ANIMS
+        hide = anim in _ACC_HIDE_ANIMS
         if self.acc_behind is not None:
             self.canvas.itemconfig(self.acc_behind, state="hidden" if hide else "normal")
             if not hide:
@@ -2644,7 +3132,7 @@ class Animal:
 
     def _place(self):
         self.win.geometry(f"+{int(self.x - self.cw / 2 + self.app.sdx)}"
-                          f"+{int(self.y - self.ch + self.app.sdy)}")
+                          f"+{int(self.y - self.ch + getattr(self, '_gait_dy', 0) + self.app.sdy)}")
 
     # ---- interaction ----
     def _press(self, ev):
@@ -2696,30 +3184,86 @@ class Animal:
 class Decor:
     """A placed piece of furniture: floor-anchored, draggable, removable."""
 
-    def __init__(self, app, kind, x, uses=0):
+    def __init__(self, app, kind, x, uses=0, variant=None, grow=None):
         self.app = app
         self.kind = kind
         self.uses = uses               # litter-box dirtiness (uses since scoop)
-        self.lushness = 100.0          # food in grass/plant (regrows over time)
-        art = DECOR_ART[kind]
+        self.lushness = 100.0          # food in grass/plant/bush (regrows over time)
+        # pick a random look once; persisted so it stays the same across runs
+        pool = veg_variants(kind)
+        if pool:
+            self.variant = (variant if isinstance(variant, int) and 0 <= variant < len(pool)
+                            else random.randrange(len(pool)))
+        else:
+            self.variant = 0
+        # growth: vegetation rises from a sprout to full; everything else is full
+        if kind in VEG_GROW_KINDS:
+            self.grow = float(grow) if grow is not None else 0.12
+            self.grow = max(0.05, min(1.0, self.grow))
+        else:
+            self.grow = 1.0
+        art = self._art()
         self.gw, self.gh = len(art[0]), len(art)
-        s = self.scale = app.scale
+        self.scale = app.scale
         self.win = _pet_window(app)
-        self.cw, self.ch = self.gw * s, self.gh * s
-        self.canvas = tk.Canvas(self.win, width=self.cw, height=self.ch,
+        self._drawn_grow = -1.0
+        self.x = float(x)              # provisional; clamped once we know our width
+        self.canvas = tk.Canvas(self.win, width=1, height=1,
                                 bg=KEY, highlightthickness=0, bd=0)
         self.canvas.pack()
-        self.img = frame_to_photo(art, s)
-        self.item = self.canvas.create_image(self.cw // 2, self.ch,
-                                              anchor="s", image=self.img)
+        self.item = self.canvas.create_image(0, 0, anchor="s")
+        self._render()
         wa = app.wa
-        self.x = min(max(float(x), wa[0] + self.cw / 2), wa[2] - self.cw / 2)
+        self.x = min(max(self.x, wa[0] + self.cw / 2), wa[2] - self.cw / 2)
         self.pressxy = None
         self.dragging = False
         self.canvas.bind("<ButtonPress-1>", self._press)
         self.canvas.bind("<B1-Motion>", self._dragm)
         self.canvas.bind("<ButtonRelease-1>", self._release)
         self.canvas.bind("<ButtonPress-3>", self._menu)
+        self._place()
+
+    def _variant(self):
+        """(grid, palette) for this decor's current variant; pal None -> global PAL."""
+        pool = veg_variants(self.kind)
+        if pool:
+            return pool[self.variant % len(pool)]
+        return DECOR_ART[self.kind], None
+
+    def _art(self):
+        return self._variant()[0]
+
+    def _pal(self):
+        return self._variant()[1]
+
+    def _eff_scale(self):
+        """Pixel scale: per-kind sizing for the (taller) AI art, shrunk while growing."""
+        s = float(self.scale)
+        if self._pal() is not None:                 # AI asset -> apply per-kind sizing
+            s *= VEG_FACTOR.get(self.kind, 0.7)
+        s = max(1.0, s)                             # floor the FULL-GROWN size first...
+        if self.kind in VEG_GROW_KINDS and self.grow < 1.0:
+            s *= (0.32 + 0.68 * self.grow)         # ...then shrink the sprout (may be <1)
+        return s
+
+    def _render(self):
+        """(Re)build the photo at the current variant + growth and resize the box."""
+        art, pal = self._variant()
+        self.gw, self.gh = len(art[0]), len(art)
+        eff = self._eff_scale()
+        self.img = frame_to_photo(art, eff, pal=pal)
+        self.cw, self.ch = self.img.width(), self.img.height()
+        self.canvas.config(width=self.cw, height=self.ch)
+        self.canvas.coords(self.item, self.cw // 2, self.ch)
+        self.canvas.itemconfig(self.item, image=self.img)
+        self._drawn_grow = self.grow
+        self._drawn_ratio = _scale_ratio(eff)      # skip re-renders that look identical
+        # re-clamp on every (re)render so a plant that grows wider near a screen
+        # edge stays fully on-screen instead of spilling off
+        if hasattr(self, "x"):
+            wa = self.app.wa
+            half = min(self.cw / 2, (wa[2] - wa[0]) / 2)
+            self.x = min(max(self.x, wa[0] + half), wa[2] - half)
         self._place()
 
     def top_y(self):
@@ -2735,13 +3279,8 @@ class Decor:
             pass
 
     def rescale(self):
-        s = self.scale = self.app.scale
-        self.cw, self.ch = self.gw * s, self.gh * s
-        self.canvas.config(width=self.cw, height=self.ch)
-        self.img = frame_to_photo(DECOR_ART[self.kind], s)
-        self.canvas.coords(self.item, self.cw // 2, self.ch)
-        self.canvas.itemconfig(self.item, image=self.img)
-        self._place()
+        self.scale = self.app.scale
+        self._render()
 
     def _press(self, ev):
         self.pressxy = (ev.x_root, ev.y_root)
@@ -2768,14 +3307,25 @@ class Decor:
         self.app.decor_menu(self, ev)
 
     def edible(self):
-        return self.kind in ("grass", "plant") and self.lushness > 8
+        # a sprout has nothing to graze yet — let it grow in first
+        return (self.kind in EDIBLE_VEG and self.lushness > 8
+                and self.grow > 0.35)
 
     def graze(self):
         self.lushness = max(0.0, self.lushness - 35.0)
 
     def regrow(self, dt):
-        if self.kind in ("grass", "plant"):
+        if self.kind in EDIBLE_VEG:
             self.lushness = min(100.0, self.lushness + dt * 4.0)  # full in ~25s
+        if self.kind in VEG_GROW_KINDS and self.grow < 1.0:
+            self.grow = min(1.0, self.grow + dt / VEG_GROW_SECS.get(self.kind, 60.0))
+            if self.grow - self._drawn_grow >= 0.05 or self.grow >= 1.0:
+                # only rebuild if the plant would actually look different (the
+                # scale ratio changed) — otherwise just note the new growth
+                if _scale_ratio(self._eff_scale()) != getattr(self, "_drawn_ratio", None):
+                    self._render()
+                else:
+                    self._drawn_grow = self.grow
 
     def destroy(self):
         try:
@@ -2842,7 +3392,9 @@ class Bird:
         self.canvas = tk.Canvas(self.win, width=self.cw, height=self.ch,
                                 bg=KEY, highlightthickness=0, bd=0)
         self.canvas.pack()
-        self.images = {(n, d): frame_to_photo(BIRD_FRAMES[n], s, flip=(d < 0))
+        ov = random.choice(BIRD_PALS)
+        self._pal = dict(PAL, **ov) if ov else None
+        self.images = {(n, d): frame_to_photo(BIRD_FRAMES[n], s, flip=(d < 0), pal=self._pal)
                        for n in BIRD_FRAMES for d in (1, -1)}
         self.item = self.canvas.create_image(self.cw // 2, self.ch // 2,
                                               image=self.images[("up", 1)])
@@ -2911,7 +3463,7 @@ class Bird:
         s = self.scale = max(2, self.app.scale - 1)
         self.cw, self.ch = self.gw * s, self.gh * s
         self.canvas.config(width=self.cw, height=self.ch)
-        self.images = {(n, d): frame_to_photo(BIRD_FRAMES[n], s, flip=(d < 0))
+        self.images = {(n, d): frame_to_photo(BIRD_FRAMES[n], s, flip=(d < 0), pal=self._pal)
                        for n in BIRD_FRAMES for d in (1, -1)}
         self.canvas.coords(self.item, self.cw // 2, self.ch // 2)
         self.canvas.itemconfig(self.item, image=self.images[("up", self.dir)])
@@ -3142,7 +3694,8 @@ class VCat(tk.Tk):
         self._place()
         for d in state.get("decor", []):
             try:
-                self.decor.append(Decor(self, d["kind"], d["x"], d.get("uses", 0)))
+                self.decor.append(Decor(self, d["kind"], d["x"], d.get("uses", 0),
+                                        d.get("variant"), d.get("grow")))
             except Exception as e:
                 log_error(f"decor load: {e!r}")
         for m in state.get("messes", []):
@@ -3219,7 +3772,7 @@ class VCat(tk.Tk):
 
     def _place(self):
         self.geometry(f"+{int(self.x - self.cw / 2 + self.sdx)}"
-                      f"+{int(self.y - self.ch + self.sdy)}")
+                      f"+{int(self.y - self.ch + getattr(self, '_gait_dy', 0) + self.sdy)}")
 
     def feet_to_canvas(self, sx, sy):
         """Convert screen coords to canvas coords."""
@@ -3237,7 +3790,10 @@ class VCat(tk.Tk):
     def update_needs(self, dt):
         for k, rate in DECAY.items():
             self.needs[k] = max(0.0, self.needs[k] - rate * dt)
-        self.potty = max(0.0, self.potty - (100 / (5 * 3600)) * dt)
+        if self.can("litter"):
+            self.potty = max(0.0, self.potty - (100 / (5 * 3600)) * dt)
+        else:
+            self.potty = 100.0          # only litter-using species track a bladder
         # a dirty home slowly bums her out (motivates cleaning, but bounded)
         if self.messes:
             self.needs["love"] = max(0.0, self.needs["love"]
@@ -3580,7 +4136,9 @@ class VCat(tk.Tk):
             potty=self.potty, name=self.name, costume=self.costume,
             species=self.species, created_ts=self.created_ts, immortal=self.immortal,
             kitten=False,
-            decor=[{"kind": d.kind, "x": d.x, "uses": d.uses} for d in self.decor],
+            decor=[{"kind": d.kind, "x": d.x, "uses": d.uses,
+                    "variant": d.variant, "grow": round(d.grow, 3)}
+                   for d in self.decor],
             messes=[{"kind": m.kind, "x": m.x} for m in self.messes],
             animals=[a.to_save() for a in self.animals if a.alive and not a.dying])
         save_state(self.persist)
@@ -3607,6 +4165,10 @@ class VCat(tk.Tk):
 
     def ground(self):
         return float(self.wa[3])
+
+    def can(self, trait):
+        """Does this pet's species naturally do this behaviour? (see SPECIES_TRAITS)"""
+        return trait in SPECIES_TRAITS.get(self.species, set())
 
     # ---- ecosystem ------------------------------------------------------
 
@@ -3673,7 +4235,8 @@ class VCat(tk.Tk):
             return None
 
     def _tick_ecosystem(self, dt):
-        if not self.animals and not any(d.kind in ("grass", "plant") for d in self.decor):
+        # nothing to simulate only if there are no animals AND no plants to grow/regrow
+        if not self.animals and not self.decor:
             return
         for d in self.decor:
             d.regrow(dt)
@@ -3818,19 +4381,20 @@ class VCat(tk.Tk):
             options += [("lie", 2.0 if old else 1.2), ("groom", 1.6)]
             if self.behavior_cd["sleep"] <= 0:
                 options.append(("sleep", sleepw))
-            # the spry middle stages do the athletic stuff
+            # the spry middle stages do the athletic stuff (species-appropriate only)
             if not young and not old:
-                if self.behavior_cd["scratch"] <= 0:
+                if self.can("scratch") and self.behavior_cd["scratch"] <= 0:
                     options.append(("go_scratch", 1.1))
-                if self.behavior_cd["climb"] <= 0 and self.windows():
+                if self.can("climb") and self.behavior_cd["climb"] <= 0 and self.windows():
                     options.append(("go_climb", 2.6))
-                if self.behavior_cd["icon"] <= 0:
+                if self.can("scratch") and self.behavior_cd["icon"] <= 0:
                     options.append(("go_icon", 0.8))
-                if self.behavior_cd["tailchase"] <= 0:
+                if self.can("tailchase") and self.behavior_cd["tailchase"] <= 0:
                     options.append(("tailchase", 0.6))
-                options.append(("zoomies_auto", 0.7 if night else 0.22))
-            elif young and self.behavior_cd["tailchase"] <= 0:
-                options.append(("tailchase", 1.0))     # kittens chase their tail
+                if self.can("zoomies"):
+                    options.append(("zoomies_auto", 0.7 if night else 0.22))
+            elif young and self.can("tailchase") and self.behavior_cd["tailchase"] <= 0:
+                options.append(("tailchase", 1.0))     # young ones chase their tail
             if self.decor and self.behavior_cd["decor"] <= 0:
                 options.append(("go_decor", 2.4))
         else:
@@ -3984,8 +4548,12 @@ class VCat(tk.Tk):
     def do_go_decor(self):
         self.behavior_cd["decor"] = random.uniform(12, 35)
         # the litter box is driven by the potty urge, not idle curiosity
-        usable = [d for d in self.decor
-                  if d.kind not in ("litter", "grass", "tree", "pond")]
+        blocked = {"litter", "grass", "tree", "pond", "bush", "flower"}
+        if not self.can("scratch"):          # only clawing species use the post/plant
+            blocked |= {"post", "plant"}
+        if not self.can("box"):              # only box-dwellers hop in the box
+            blocked.add("box")
+        usable = [d for d in self.decor if d.kind not in blocked]
         if not usable:
             self.do_wander()
             return
@@ -4056,6 +4624,8 @@ class VCat(tk.Tk):
     # ---- nature calls ------------------------------------------------------
 
     def _maybe_potty(self):
+        if not self.can("litter"):
+            return False
         if (self.potty > 22 or self.surface_hwnd is not None
                 or self.perch is not None):
             return False
@@ -4120,6 +4690,8 @@ class VCat(tk.Tk):
     # ---- bird watching / catching ------------------------------------------
 
     def _maybe_bird(self):
+        if not self.can("birds"):
+            return False
         b = self.bird
         if (b is not None and b.alive and not b.caught
                 and self.surface_hwnd is None and self.perch is None):
@@ -4316,7 +4888,8 @@ class VCat(tk.Tk):
         worst = self.need_low()
         if worst and self.beg_cd <= 0:
             self.beg_cd = random.uniform(35, 70)
-            icon = {"hunger": "fish", "thirst": "drop", "love": "heart"}[worst]
+            food = "veg" if SPECIES_DIET.get(self.species) == "herb" else "fish"
+            icon = {"hunger": food, "thirst": "drop", "love": "heart"}[worst]
             self.show_bubble(icon)
             self._say(self.voice_word())
             self.play_snd(self.voice())
@@ -4329,6 +4902,8 @@ class VCat(tk.Tk):
     # ---- laser pointer -----------------------------------------------------------
 
     def _maybe_laser(self):
+        if not self.can("laser"):
+            return False
         if self.laser is not None and self.surface_hwnd is None:
             self.after_walk = None
             self.set_state("laser", "run", 9999)
@@ -4359,6 +4934,8 @@ class VCat(tk.Tk):
     # ---- yarn ball ------------------------------------------------------------------
 
     def _maybe_toy(self):
+        if not self.can("toy"):
+            return False
         t = self.toy
         if t is None or t.held or self.surface_hwnd is not None:
             return False
@@ -4422,12 +4999,22 @@ class VCat(tk.Tk):
     # ---- backflip ----------------------------------------------------------------------
 
     def do_flip(self):
+        if not self.can("flip"):
+            # not a backflipping species — but if we were caught mid-air (e.g. a
+            # bear/frog pouncing an elevated cursor), come back down, don't float
+            if self.surface_hwnd is None and self.perch is None and self.y < self.ground():
+                self.start_fall()
+            else:
+                self.set_state("idle", "idle", 2)
+            return
         self.start_jump(self.x, self.ground(), anim="flip", dur=0.7)
         self.after_jump = ("tada", None)
 
     # ---- mouse hunting ---------------------------------------------------------
 
     def _maybe_hunt(self):
+        if not self.can("hunt"):
+            return False
         c = self.critter
         if (c is not None and c.alive and not c.caught
                 and self.surface_hwnd is None and abs(c.x - self.x) < 750):
@@ -4502,6 +5089,8 @@ class VCat(tk.Tk):
     # ---- cursor chase --------------------------------------------------------
 
     def _maybe_chase(self):
+        if not self.can("hunt"):
+            return False
         if self.chase_cd > 0 or self.surface_hwnd is not None:
             return False
         cx, cy = self.cur
@@ -4745,28 +5334,35 @@ class VCat(tk.Tk):
 
         spname = SPECIES[self.species]["name"]
         who = self.name or spname
-        menu.add_command(label=f"🐈  {who}  ·  {spname}", state="disabled")
+        menu.add_command(label=f"{SPECIES_EMOJI.get(self.species, '🐈')}  {who}  ·  {spname}",
+                         state="disabled")
         menu.add_command(
             label=f"     {STAGE_LABEL.get(self.stage, self.stage)}  ·  {self.age_text()}",
             state="disabled")
         menu.add_command(label=f"  food   {bar(self.needs['hunger'])}", state="disabled")
         menu.add_command(label=f"  water  {bar(self.needs['thirst'])}", state="disabled")
         menu.add_command(label=f"  love   {bar(self.needs['love'])}", state="disabled")
-        menu.add_command(label=f"  potty  {bar(self.potty)}", state="disabled")
+        if self.can("litter"):
+            menu.add_command(label=f"  potty  {bar(self.potty)}", state="disabled")
         menu.add_separator()
-        menu.add_command(label="🐟  Feed", command=self.act_feed)
+        feed_icon = "🥬" if SPECIES_DIET.get(self.species) == "herb" else "🐟"
+        menu.add_command(label=f"{feed_icon}  Feed", command=self.act_feed)
         menu.add_command(label="💧  Water", command=self.act_water)
         menu.add_command(label="🍬  Give a treat", command=self.act_treat)
 
         play = tk.Menu(menu, tearoff=0)
-        play.add_command(label="🏃  Zoomies", command=self.act_play)
-        play.add_command(label="🔴  Laser: stop" if self.laser else "🔴  Laser pointer",
-                         command=self.act_laser)
-        play.add_command(label="🧶  Put yarn away" if self.toy else "🧶  Toss the yarn",
-                         command=self.act_toy)
-        play.add_command(label="🤸  Do a trick", command=self.act_trick)
-        play.add_command(label="👋  Come here", command=self.act_come)
-        play.add_command(label="💤  Nap time", command=self.act_nap)
+        if self.can("zoomies"):
+            play.add_command(label="🏃  Zoomies", command=self.act_play)
+        if self.can("laser"):
+            play.add_command(label="🔴  Laser: stop" if self.laser else "🔴  Laser pointer",
+                             command=self.act_laser)
+        if self.can("toy"):
+            play.add_command(label="🧶  Put yarn away" if self.toy else "🧶  Toss the yarn",
+                             command=self.act_toy)
+        if self.can("flip"):
+            play.add_command(label="🤸  Do a trick", command=self.act_trick)
+        play.add_command(label="👋  Come here", command=self.act_come)      # universal
+        play.add_command(label="💤  Nap time", command=self.act_nap)        # universal
         menu.add_cascade(label="🎾  Play", menu=play)
 
         look = tk.Menu(menu, tearoff=0)
@@ -4796,8 +5392,8 @@ class VCat(tk.Tk):
             deco.add_command(label="add  " + DECOR_META[kind]["label"],
                              command=lambda k=kind: self.act_add_decor(k))
         deco.add_separator()
-        for kind in ("grass", "tree", "pond"):    # environment / scenery
-            deco.add_command(label="grow  " + DECOR_META[kind]["label"],
+        for kind in ("grass", "flower", "bush", "tree", "pond"):   # plant & scenery
+            deco.add_command(label="plant  " + DECOR_META[kind]["label"],
                              command=lambda k=kind: self.act_add_decor(k))
         if self.decor:
             deco.add_separator()
@@ -4808,25 +5404,31 @@ class VCat(tk.Tk):
                              command=self.clean_all_messes)
         menu.add_cascade(label="🏠  Decorate", menu=deco)
 
-        emoji = {"cat": "🐈", "dog": "🐕", "dragon": "🐉", "bunny": "🐇", "fox": "🦊",
-                 "goat": "🐐", "pig": "🐷", "cow": "🐄", "bear": "🐻", "panda": "🐼",
-                 "frog": "🐸", "penguin": "🐧", "chick": "🐤", "hamster": "🐹"}
         zoo = tk.Menu(menu, tearoff=0)
         herb = sum(1 for a in self.animals if a.diet == "herb")
         carn = sum(1 for a in self.animals if a.diet == "carn")
         zoo.add_command(label=f"🌍  flock: {len(self.animals)}/{self.animal_cap}"
                               f"   🌿{herb} 🥩{carn}", state="disabled")
+        full = len(self.animals) >= self.animal_cap
+        zoo.add_command(label="🎲  Surprise me!", state="disabled" if full else "normal",
+                        command=self.act_add_random)
         zoo.add_separator()
-        for key, sp in SPECIES.items():
-            diet = "🌿" if SPECIES_DIET.get(key) == "herb" else "🥩"
-            pair = tk.Menu(zoo, tearoff=0)
-            pair.add_command(label="♂ male",
-                             command=lambda k=key: self.act_add_animal(k, "m"))
-            pair.add_command(label="♀ female",
-                             command=lambda k=key: self.act_add_animal(k, "f"))
-            pair.add_command(label="♂♀ a breeding pair",
-                             command=lambda k=key: self.act_add_pair(k))
-            zoo.add_cascade(label=f"{emoji.get(key, '🐾')} {diet} {sp['name']}", menu=pair)
+        # group the 14 species under two tidy diet submenus instead of a long flat list
+        for diet_key, diet_label in (("herb", "🌿  Herbivores"), ("carn", "🥩  Carnivores")):
+            grp = tk.Menu(zoo, tearoff=0)
+            for key, sp in SPECIES.items():
+                if SPECIES_DIET.get(key, "carn") != diet_key:
+                    continue
+                pair = tk.Menu(grp, tearoff=0)
+                pair.add_command(label="♂  male",
+                                 command=lambda k=key: self.act_add_animal(k, "m"))
+                pair.add_command(label="♀  female",
+                                 command=lambda k=key: self.act_add_animal(k, "f"))
+                pair.add_command(label="♂♀  breeding pair",
+                                 command=lambda k=key: self.act_add_pair(k))
+                grp.add_cascade(label=f"{SPECIES_EMOJI.get(key, '🐾')}  {sp['name']}",
+                                menu=pair)
+            zoo.add_cascade(label=diet_label, menu=grp)
         if self.animals:
             zoo.add_separator()
             zoo.add_command(label="🧹  Release all animals", command=self.clear_animals)
@@ -4835,12 +5437,9 @@ class VCat(tk.Tk):
         menu.add_command(label="✏  Rename…", command=self.act_rename)
 
         newpet = tk.Menu(menu, tearoff=0)
-        emoji = {"cat": "🐈", "dog": "🐕", "dragon": "🐉", "bunny": "🐇", "fox": "🦊",
-                 "goat": "🐐", "pig": "🐷", "cow": "🐄", "bear": "🐻", "panda": "🐼",
-                 "frog": "🐸", "penguin": "🐧", "chick": "🐤", "hamster": "🐹"}
         for key, sp in SPECIES.items():
             born = "🥚 hatch" if sp["spawn"] == "egg" else "🪶 stork"
-            newpet.add_command(label=f"{emoji.get(key, '🐾')}  {sp['name']}  ({born})",
+            newpet.add_command(label=f"{SPECIES_EMOJI.get(key, '🐾')}  {sp['name']}  ({born})",
                                command=lambda k=key: self.act_new_pet(k))
         menu.add_cascade(label="🍼  New pet…", menu=newpet)
 
@@ -4890,6 +5489,8 @@ class VCat(tk.Tk):
         self.set_state("drink", "drink", 4.0)
 
     def act_play(self):
+        if not self.can("zoomies"):
+            return
         if not self._ensure_ground_state():
             return
         self.zoom_passes = 3
@@ -5048,6 +5649,8 @@ class VCat(tk.Tk):
             if self.state == "laser":
                 self.set_state("groom", "groom", 3)
             return
+        if not self.can("laser"):
+            return
         self.laser = Laser(self)
         self.laser_until = time.monotonic() + random.uniform(50, 90)
         self.play_snd("chirp")
@@ -5059,6 +5662,8 @@ class VCat(tk.Tk):
             self.toy = None
             if self.state in ("toy_chase", "toy_bat"):
                 self.set_state("idle", "idle", 2)
+            return
+        if not self.can("toy"):
             return
         cx, cy = self.cur
         x = min(max(cx, self.wa[0] + 30), self.wa[2] - 30)
@@ -5165,6 +5770,9 @@ class VCat(tk.Tk):
             self.play_snd("chirp")
             self._stash_save()
 
+    def act_add_random(self):
+        self.act_add_animal(random.choice(list(SPECIES)))
+
     def clear_animals(self):
         for a in self.animals:
             a.destroy()
@@ -5174,7 +5782,9 @@ class VCat(tk.Tk):
     def animal_menu(self, animal, ev):
         m = tk.Menu(self, tearoff=0, font=("Segoe UI", 10))
         spn = SPECIES[animal.species]["name"]
-        sex = "♀ female" if animal.gender == "f" else "♂ male"
+        sex = "♀" if animal.gender == "f" else "♂"
+        diet_icon = "🌿" if animal.diet == "herb" else "🥩"
+        # ---- header: who is this? ----
         tags = []
         if animal.genes.get("ultra"):
             tags.append("✨ULTRA")
@@ -5182,23 +5792,138 @@ class VCat(tk.Tk):
             tags.append("✨shiny")
         if animal.genes.get("ability"):
             tags.append(animal.genes["ability"])
-        title = f"{animal.name or spn} · {sex} · {animal.stage()}"
-        m.add_command(label=title, state="disabled")
-        m.add_command(label=f"   {spn} {('· ' + ', '.join(tags)) if tags else ''}",
-                      state="disabled")
-        m.add_command(label=f"   hunger {int(animal.hunger)}%", state="disabled")
+        if animal.genes.get("hybrid"):
+            tags.append("hybrid")
+        m.add_command(label=f"{sex}  {animal.name or spn}", state="disabled")
+        sub = f"{diet_icon} {spn} · {animal.stage()}"
+        if tags:
+            sub += " · " + ", ".join(tags)
+        m.add_command(label="   " + sub, state="disabled")
+        hb = max(0, min(100, int(animal.hunger)))
+        bar = "█" * (hb // 10) + "░" * (10 - hb // 10)
+        m.add_command(label=f"   hunger {bar} {hb}%", state="disabled")
         m.add_separator()
+
+        # ---- always-available care ----
+        m.add_command(label="🫶  Pet", command=lambda: self._pet_animal(animal))
         m.add_command(label="🍖  Feed", command=lambda: self._feed_animal(animal))
+
+        # ---- one diet-specific command (the headline per-breed action) ----
+        if animal.diet == "herb":
+            if self.has_food_for("herb"):
+                m.add_command(label="🌿  Go graze",
+                              command=lambda: self._urge_animal(animal, "graze"))
+            else:
+                m.add_command(label="🌿  Go graze  (grow some grass first)",
+                              state="disabled")
+        else:
+            if self.has_food_for("carn", animal):
+                m.add_command(label="🥩  Go hunt",
+                              command=lambda: self._urge_animal(animal, "hunt"))
+            else:
+                m.add_command(label="🥩  Go hunt  (no prey around)",
+                              state="disabled")
+
+        # ---- breeding, only when this animal can actually do it ----
+        if animal.gender == "f" and animal.is_adult():
+            if animal.breed_cd > 0:
+                m.add_command(label=f"💕  Find a mate  (resting {int(animal.breed_cd)}s)",
+                              state="disabled")
+            elif animal.hunger <= 60:
+                m.add_command(label="💕  Find a mate  (too hungry — feed her first)",
+                              state="disabled")
+            elif len(self.animals) < self.animal_cap:
+                m.add_command(label="💕  Find a mate",
+                              command=lambda: self._urge_animal(animal, "mate"))
+
+        # ---- generic "tell it to…" submenu keeps the top level tidy ----
+        act = tk.Menu(m, tearoff=0)
+        act.add_command(label="❗  Come here",
+                        command=lambda: self._urge_animal(animal, "come"))
+        act.add_command(label="🎾  Play",
+                        command=lambda: self._urge_animal(animal, "play"))
+        act.add_command(label="💤  Rest",
+                        command=lambda: self._urge_animal(animal, "rest"))
+        m.add_cascade(label="🐾  Tell it to…", menu=act)
+
+        m.add_separator()
+        m.add_command(label="✏  Rename…", command=lambda: self._rename_animal(animal))
         m.add_command(label="🗑  Release", command=lambda: self._release_animal(animal))
         try:
             m.tk_popup(ev.x_root, ev.y_root)
         finally:
             m.grab_release()
 
+    def _pet_animal(self, animal):
+        if animal in self.animals and animal.alive and not animal.dying:
+            animal._heart()
+            if animal.state not in ("dangle", "fall"):
+                animal.set("look", "blink", 1.2)
+            self.play_snd(animal.voice())
+
     def _feed_animal(self, animal):
         if animal in self.animals and animal.alive:
             animal.hunger = 100.0
             animal._heart()
+
+    def _urge_animal(self, animal, urge, secs=14.0):
+        if animal not in self.animals or not animal.alive or animal.dying:
+            return
+        if animal.state in ("dangle", "fall"):
+            return
+        animal.urge = urge
+        animal.urge_t = secs
+        icon = {"graze": "🌿", "hunt": "🥩", "mate": "💕",
+                "come": "❗", "play": "🎾", "rest": "💤"}.get(urge, "✦")
+        animal._fx(icon, -22, 1.0)
+        animal.set("walk", "walk", secs)   # ensure the brain runs so the urge fires
+
+    def _rename_animal(self, animal):
+        if animal not in self.animals:
+            return
+        dlg = tk.Toplevel(self)
+        dlg.title("Name this animal")
+        dlg.transient(self)
+        dlg.attributes("-topmost", True)
+        dlg.resizable(False, False)
+        dlg.configure(bg="#1c1c28")
+        f = tk.Frame(dlg, bg="#1c1c28")
+        f.pack(fill="x", padx=14, pady=10)
+        tk.Label(f, text=SPECIES[animal.species]["name"] + ":", fg="#f4f4f8",
+                 bg="#1c1c28", font=("Segoe UI", 10)).pack(side="left", padx=(0, 8))
+        e = tk.Entry(f, font=("Segoe UI", 11), width=16)
+        e.pack(side="right")
+        e.insert(0, animal.name)
+
+        def close(*_):
+            try:
+                dlg.grab_release()
+            except tk.TclError:
+                pass
+            dlg.destroy()
+
+        def ok(*_):
+            if animal in self.animals:
+                animal.name = e.get().strip()[:16]
+                self._stash_save()
+            close()
+
+        btns = tk.Frame(dlg, bg="#1c1c28")
+        btns.pack(fill="x", padx=14, pady=(0, 12))
+        tk.Button(btns, text="OK", command=ok, width=8).pack(side="right", padx=4)
+        tk.Button(btns, text="Cancel", command=close, width=8).pack(side="right")
+        dlg.bind("<Return>", ok)
+        dlg.bind("<Escape>", close)
+        dlg.protocol("WM_DELETE_WINDOW", close)
+        e.focus_set()
+        e.selection_range(0, "end")
+        dlg.update_idletasks()
+        dlg.geometry(f"+{int(min(self.cur[0], self.wa[2] - 240))}"
+                     f"+{max(int(self.wa[1]) + 20, int(self.cur[1]) - 60)}")
+        try:
+            dlg.grab_set()
+        except tk.TclError:
+            pass
 
     def _release_animal(self, animal):
         if animal in self.animals:
@@ -5294,7 +6019,17 @@ class VCat(tk.Tk):
     # ---- drawing -----------------------------------------------------------------------
 
     def _draw(self):
-        frames, fps, loop = ANIMS.get(self.anim, ANIMS["idle"])
+        # gait: a frog/bunny hops, a penguin waddles — but only on flat ground,
+        # never while perched/climbing/airborne (would detach from the surface)
+        anim = self.anim
+        self._gait_dy = 0.0
+        if (self.surface_hwnd is None and self.perch is None
+                and self.anim in ("walk", "run")):
+            gdy, anim2 = gait_render(self.species, self.anim, self.state_t,
+                                     self.scale, True)
+            self._gait_dy = gdy
+            anim = anim2 or anim
+        frames, fps, loop = ANIMS.get(anim, ANIMS["idle"])
         idx = int(self.state_t * fps)
         idx = idx % len(frames) if loop else min(idx, len(frames) - 1)
         img = self.images[(frames[idx], self.facing)]
