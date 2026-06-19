@@ -30,6 +30,7 @@ comfy_gen.py
 pixelize.py
 gen_batch.py
 gen_batch2.py
+gen_anime.py
 gen_assets_module.py
 convert_preview.py
 preview_ai.py

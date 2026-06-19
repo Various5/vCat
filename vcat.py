@@ -6282,6 +6282,16 @@ def main():
     if "--sheet" in sys.argv:
         render_sheet()
         return
+    if "--selfcheck" in sys.argv:
+        # write a status file so we can confirm a packaged build bundled the AI art
+        try:
+            os.makedirs(SAVE_DIR, exist_ok=True)
+            with open(os.path.join(SAVE_DIR, "selfcheck.txt"), "w", encoding="utf-8") as f:
+                f.write(f"VEG_ART={ {k: len(v) for k, v in VEG_ART.items()} }\n")
+                f.write(f"FURN_ART={sorted(FURN_ART)}\n")
+        except Exception as e:
+            log_error(f"selfcheck: {e!r}")
+        return
     if acquire_single_instance() is None:
         ctypes.windll.user32.MessageBoxW(0, "vCat is already running! 🐈‍⬛",
                                          "vCat", 0x40)
