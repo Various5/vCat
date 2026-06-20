@@ -33,10 +33,12 @@ offline into pixel grids and shipped as a generated `vcat_assets.py` module
 - **Windows** — climbs the edges of your real windows and naps on the title
   bar; move the window and she falls off, flips you off with a censored swear,
   and the screen shakes. 🖕
-- **Home** — place furniture (bed, bowls, scratching post, plant, box, litter)
-  and decorate.
+- **Home** — place **AI-designed pixel furniture** (cozy bed, food & water bowls,
+  scratching post, litter tray, pond) and a cardboard **box your cat climbs right
+  inside** (peeking out the top 📦).
 - **Customise** — costumes (batcat 🦇, spidercat 🕷, wizard 🧙, king 👑,
-  devil 😈), fur colors, size, and **name your pets** (saved per machine).
+  devil 😈), fur colors, size, and **name your pets** — named pets wear a little
+  **name badge** above their head that's also an easy right-click target.
 - **A living ecosystem** — add a flock of animals (the old kitten is retired). Plant
   grass, flowers, bushes and trees 🌿🌸🌳 — lush **AI-designed pixel scenery** (oak,
   pine and cherry-blossom trees; leafy, berry and flowering bushes; tulips, daisies

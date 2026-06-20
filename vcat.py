@@ -1079,43 +1079,73 @@ for _name, _variants in VEG_VARIANTS.items():
             assert len(_r) == _w, f"veg {_name}#{_vi} row {_i}: ragged"
             assert all(ch in PAL for ch in _r), f"veg {_name}#{_vi} row {_i}: bad char"
 
-# Richer AI-generated scenery (ComfyUI/Qwen-Image -> pixel grids), if present.
-# VEG_ART[kind] = list of (grid_lines, palette) with a per-asset palette so the
-# detailed art needs no global-palette chars. Falls back to the hand-drawn art.
+# Richer AI-generated art (ComfyUI/Qwen-Image -> pixel grids), if present.
+# VEG_ART[kind]  = list of (grid_lines, palette) variants (trees/bushes/...).
+# FURN_ART[kind] = a single (grid_lines, palette) (bed/food/water/post/box/...).
+# Per-asset palettes mean the detailed art needs no global-palette chars; if the
+# module is missing or malformed the app falls back to the hand-drawn art.
+# Import each dict independently so a missing one doesn't drop the other.
 try:
     from vcat_assets import VEG_ART
 except Exception:
     VEG_ART = {}
+try:
+    from vcat_assets import FURN_ART
+except Exception:
+    FURN_ART = {}
+# per-species pixel-art body sprites (so each animal looks like itself, not a cat)
+try:
+    from vcat_assets import ANIMAL_ART
+except Exception:
+    ANIMAL_ART = {}
 
-# AI grids are taller (~22-46 cells) than the old hand-drawn ones, so each kind
-# renders at a fraction of the pet's scale to keep natural relative sizes.
-VEG_FACTOR = {"tree": 1.0, "bush": 0.72, "flower": 0.62, "grass": 0.5}
+# AI grids are larger than the old hand-drawn ones, so each kind renders at a
+# fraction of the pet's scale to keep natural relative sizes.
+DECOR_FACTOR = {"tree": 1.0, "bush": 0.72, "flower": 0.62, "grass": 0.5,
+                "bed": 0.42, "food": 0.42, "water": 0.42, "post": 0.5,
+                "box": 0.52, "litter": 0.42, "pond": 0.46}
+# the ~40px animal sprites render at this fraction of the pet scale
+ANIMAL_SPRITE_FACTOR = 0.7
 
 
-def veg_variants(kind):
-    """List of (grid, pal) variants for a vegetation kind — AI art if available,
-    else the hand-drawn fallback (pal None -> render with the global PAL)."""
-    ai = VEG_ART.get(kind)
-    if ai:
-        return ai
+def decor_variants(kind):
+    """List of (grid, pal) for a decor kind — AI art if available, else the
+    hand-drawn fallback (pal None -> render with the global PAL)."""
+    if VEG_ART.get(kind):
+        return VEG_ART[kind]
+    if FURN_ART.get(kind):
+        return [FURN_ART[kind]]
     hand = VEG_VARIANTS.get(kind)
     if hand:
         return [(g, None) for g in hand]
+    if kind in DECOR_ART:
+        return [(DECOR_ART[kind], None)]
     return None
 
 
-# validate the AI assets (per-asset palette; '.' is transparent). A malformed
-# regenerated module must degrade to the hand-drawn fallback, not crash startup.
+# validate the AI assets; a malformed regenerated module degrades to the
+# hand-drawn fallback instead of crashing startup. Each dict is independent so
+# one bad entry doesn't discard the other dict's art.
+def _validate_grids(pairs):
+    for _grid, _pal in pairs:
+        _w = len(_grid[0])
+        for _r in _grid:
+            assert len(_r) == _w, "ragged"
+            assert all(c == "." or c in _pal for c in _r), "char not in palette"
+
+
 try:
-    for _k, _vs in VEG_ART.items():
-        for _vi, (_grid, _pal) in enumerate(_vs):
-            _w = len(_grid[0])
-            for _i, _r in enumerate(_grid):
-                assert len(_r) == _w, f"VEG_ART {_k}#{_vi} row {_i}: ragged"
-                assert all(c == "." or c in _pal for c in _r), \
-                    f"VEG_ART {_k}#{_vi} row {_i}: char not in palette"
+    _validate_grids((g, p) for vs in VEG_ART.values() for (g, p) in vs)
 except Exception:
-    VEG_ART = {}     # malformed assets -> fall back to the hand-drawn vegetation
+    VEG_ART = {}
+try:
+    _validate_grids(FURN_ART.values())
+except Exception:
+    FURN_ART = {}
+try:
+    _validate_grids(ANIMAL_ART.values())
+except Exception:
+    ANIMAL_ART = {}
 
 # ---------------------------------------------------------------------------
 # Birds (fly across the top; the cat tries to catch them)
@@ -2210,6 +2240,62 @@ def _pet_window(master):
     return win
 
 
+class NameTag:
+    """A little name badge that floats above a named pet. Solid (not click-through)
+    so it doubles as an easy right-click target for the menu."""
+
+    def __init__(self, app, on_menu, on_click=None):
+        self.app = app
+        self.on_menu = on_menu
+        self.win = _pet_window(app)
+        self.canvas = tk.Canvas(self.win, width=10, height=10, bg=KEY,
+                                highlightthickness=0, bd=0)
+        self.canvas.pack()
+        self.canvas.bind("<ButtonPress-3>", lambda e: self.on_menu(e))
+        if on_click is not None:                 # left-click the badge = pet (no dead zone)
+            self.canvas.bind("<ButtonPress-1>", lambda e: on_click(e))
+        self.text = None
+        self.cw = self.ch = 10
+        self.shown = False
+        self.win.withdraw()
+
+    def update(self, name, cx, cy_top):
+        if not name:
+            if self.shown:
+                self.win.withdraw()
+                self.shown = False
+            self.text = None
+            return
+        if name != self.text:
+            self.text = name
+            f = ("Segoe UI", max(8, int(5 + 1.1 * self.app.scale)), "bold")
+            t = self.canvas.create_text(0, 0, text=name, font=f, anchor="nw")
+            x1, y1, x2, y2 = self.canvas.bbox(t)
+            self.canvas.delete(t)
+            self.cw, self.ch = (x2 - x1) + 12, (y2 - y1) + 8
+            self.canvas.config(width=self.cw, height=self.ch)
+            self.canvas.delete("all")
+            self.canvas.create_rectangle(1, 1, self.cw - 1, self.ch - 1,
+                                         fill="#1c1c28", outline="#5a5a72")
+            self.canvas.create_text(self.cw / 2, self.ch / 2, text=name, fill="#fdfdff",
+                                    font=f)
+        try:
+            self.win.geometry(f"+{int(cx - self.cw / 2 + self.app.sdx)}"
+                              f"+{int(cy_top - self.ch - 2 + self.app.sdy)}")
+            if not self.shown:
+                self.win.deiconify()
+                self.shown = True
+            self.win.lift()
+        except tk.TclError:
+            pass
+
+    def destroy(self):
+        try:
+            self.win.destroy()
+        except tk.TclError:
+            pass
+
+
 class Critter:
     """A little mouse that scurries across the screen (and may become a gift)."""
 
@@ -2748,6 +2834,7 @@ class Animal:
         self.canvas.bind("<B1-Motion>", self._dragm)
         self.canvas.bind("<ButtonRelease-1>", self._release)
         self.canvas.bind("<ButtonPress-3>", self._menu)
+        self.nametag = NameTag(app, self._menu, lambda e: app._pet_animal(self))
         self._draw()
 
     # ---- looks ----
@@ -2767,6 +2854,10 @@ class Animal:
         factor = {"baby": 0.6, "adult": 1.0, "elder": 0.9}[st]
         base = max(2, int(self.app.base_scale))
         s = self.scale = round(max(1.6, base * factor * self.genes.get("size", 1.0)), 2)
+        self.use_sprite = self.species in ANIMAL_ART
+        if self.use_sprite:                 # distinct pixel-art body for this species
+            self._build_sprite(s)
+            return
         self.cw, self.ch = int(42 * s), int(36 * s)
         if self.canvas is None:
             self.canvas = tk.Canvas(self.win, width=self.cw, height=self.ch,
@@ -2803,6 +2894,29 @@ class Animal:
         self.item = self.canvas.create_image(self.cw // 2, self.ch, anchor="s")
         self.acc_front = (self.canvas.create_image(0, 0, anchor="c")
                           if ("front", 1) in self.acc_img else None)
+        self.effects = []
+        self._place()
+
+    def _build_sprite(self, s):
+        """Build a single distinct pixel-art body sprite for this species."""
+        grid, pal = ANIMAL_ART[self.species]
+        bs = max(1.0, s * ANIMAL_SPRITE_FACTOR)
+        self.body_img = {1: frame_to_photo(grid, bs, pal=pal),
+                         -1: frame_to_photo(grid, bs, flip=True, pal=pal)}
+        iw, ih = self.body_img[1].width(), self.body_img[1].height()
+        self.cw = max(iw, int(24 * s))
+        self.ch = ih + int(10 * s)          # headroom above for hearts/zzz effects
+        if self.canvas is None:
+            self.canvas = tk.Canvas(self.win, width=self.cw, height=self.ch,
+                                    bg=KEY, highlightthickness=0, bd=0)
+            self.canvas.pack()
+        else:
+            self.canvas.config(width=self.cw, height=self.ch)
+        self.canvas.delete("all")
+        self.acc_behind = self.acc_front = None    # sprite carries its own look
+        self.item = self.canvas.create_image(self.cw // 2, self.ch, anchor="s")
+        self.canvas.itemconfig(self.item, image=self.body_img[self.facing])
+        self.heart_img = frame_to_photo(ICONS["heart"], 2)
         self.effects = []
         self._place()
 
@@ -3105,6 +3219,15 @@ class Animal:
                 self.effects.remove(fx)
 
     def _draw(self):
+        if getattr(self, "use_sprite", False):
+            moving = self.anim in ("walk", "run")
+            gdy, _ = gait_render(self.species, self.anim, self.state_t, self.scale, moving)
+            if moving and abs(gdy) < 0.01:      # plain walkers: a gentle step bob
+                gdy = -abs(math.sin(self.state_t * 9)) * 1.5 * self.scale
+            self._gait_dy = gdy
+            self.canvas.itemconfig(self.item, image=self.body_img[self.facing])
+            self._place()
+            return
         moving = self.anim in ("walk", "run")
         gdy, anim2 = gait_render(self.species, self.anim, self.state_t,
                                  self.scale, moving)
@@ -3133,6 +3256,9 @@ class Animal:
     def _place(self):
         self.win.geometry(f"+{int(self.x - self.cw / 2 + self.app.sdx)}"
                           f"+{int(self.y - self.ch + getattr(self, '_gait_dy', 0) + self.app.sdy)}")
+        tag = getattr(self, "nametag", None)
+        if tag is not None:
+            tag.update(self.name, self.x, self.y - self.ch + getattr(self, "_gait_dy", 0))
 
     # ---- interaction ----
     def _press(self, ev):
@@ -3171,6 +3297,8 @@ class Animal:
                 "lifespan": round(self.lifespan, 1)}
 
     def destroy(self):
+        if getattr(self, "nametag", None) is not None:
+            self.nametag.destroy()
         try:
             self.win.destroy()
         except tk.TclError:
@@ -3190,7 +3318,7 @@ class Decor:
         self.uses = uses               # litter-box dirtiness (uses since scoop)
         self.lushness = 100.0          # food in grass/plant/bush (regrows over time)
         # pick a random look once; persisted so it stays the same across runs
-        pool = veg_variants(kind)
+        pool = decor_variants(kind)
         if pool:
             self.variant = (variant if isinstance(variant, int) and 0 <= variant < len(pool)
                             else random.randrange(len(pool)))
@@ -3225,7 +3353,7 @@ class Decor:
 
     def _variant(self):
         """(grid, palette) for this decor's current variant; pal None -> global PAL."""
-        pool = veg_variants(self.kind)
+        pool = decor_variants(self.kind)
         if pool:
             return pool[self.variant % len(pool)]
         return DECOR_ART[self.kind], None
@@ -3240,7 +3368,7 @@ class Decor:
         """Pixel scale: per-kind sizing for the (taller) AI art, shrunk while growing."""
         s = float(self.scale)
         if self._pal() is not None:                 # AI asset -> apply per-kind sizing
-            s *= VEG_FACTOR.get(self.kind, 0.7)
+            s *= DECOR_FACTOR.get(self.kind, 0.7)
         s = max(1.0, s)                             # floor the FULL-GROWN size first...
         if self.kind in VEG_GROW_KINDS and self.grow < 1.0:
             s *= (0.32 + 0.68 * self.grow)         # ...then shrink the sprout (may be <1)
@@ -3265,10 +3393,6 @@ class Decor:
             half = min(self.cw / 2, (wa[2] - wa[0]) / 2)
             self.x = min(max(self.x, wa[0] + half), wa[2] - half)
         self._place()
-
-    def top_y(self):
-        """Screen-y of the top solid surface (for perching on the box)."""
-        return self.app.ground() - (self.gh - 1) * self.scale
 
     def _place(self):
         try:
@@ -3690,6 +3814,8 @@ class VCat(tk.Tk):
         self.canvas.bind("<ButtonRelease-1>", self.on_release)
         self.canvas.bind("<ButtonPress-3>", self.on_menu)
         self.protocol("WM_DELETE_WINDOW", self.quit_app)
+        self.nametag = NameTag(self, self.on_menu,   # floating name badge (if named)
+                               lambda e: self._pet_self())
 
         self._place()
         for d in state.get("decor", []):
@@ -3731,6 +3857,16 @@ class VCat(tk.Tk):
         s = self.scale
         cos = COSTUMES.get(self.costume, COSTUMES["none"])
         spec = SPECIES.get(self.species, SPECIES["cat"])
+        ms = max(2, int(s) - 1)
+        self.icon_images = {k: frame_to_photo(v, ms) for k, v in ICONS.items()}
+        self.mouse_small = {1: frame_to_photo(CRITTER_FRAMES["flat"], ms),
+                            -1: frame_to_photo(CRITTER_FRAMES["flat"], ms, flip=True)}
+        # non-cat pets use their distinct pixel-art body sprite; the cat keeps its
+        # rich frame animations, costumes and fur colors
+        self.use_sprite = self.species != "cat" and self.species in ANIMAL_ART
+        if self.use_sprite:
+            self._build_pet_sprite(s)
+            return
         if self.species == "cat":
             pal = variant_pal(self.persist.get("color", "black"))
         else:
@@ -3744,10 +3880,6 @@ class VCat(tk.Tk):
         for name, rows in frames.items():
             self.images[(name, 1)] = frame_to_photo(rows, s, pal=pal)
             self.images[(name, -1)] = frame_to_photo(rows, s, flip=True, pal=pal)
-        ms = max(2, int(s) - 1)
-        self.icon_images = {k: frame_to_photo(v, ms) for k, v in ICONS.items()}
-        self.mouse_small = {1: frame_to_photo(CRITTER_FRAMES["flat"], ms),
-                            -1: frame_to_photo(CRITTER_FRAMES["flat"], ms, flip=True)}
         # accessory overlays: species feature (e.g. dragon wings) + costume,
         # composited so a costumed dragon still shows both
         self.acc_img = {}
@@ -3770,13 +3902,53 @@ class VCat(tk.Tk):
         if getattr(self, "carrying", False):
             self.mouth_item = self.canvas.create_image(0, 0, image=self.mouse_small[1])
 
+    def _build_pet_sprite(self, s):
+        """Main pet rendered as its distinct pixel-art body (non-cat species)."""
+        grid, pal = ANIMAL_ART[self.species]
+        bs = max(1.0, s * ANIMAL_SPRITE_FACTOR)
+        self.body_img = {1: frame_to_photo(grid, bs, pal=pal),
+                         -1: frame_to_photo(grid, bs, flip=True, pal=pal)}
+        iw, ih = self.body_img[1].width(), self.body_img[1].height()
+        self.cw = max(iw, int(24 * s))
+        self.ch = ih + int(12 * s)              # headroom for bubbles/effects
+        # egg-spawn species still need the egg/hatch frames during incubation
+        self.images = {}
+        for n in ("egg1", "egg2", "eggcrack"):
+            self.images[(n, 1)] = frame_to_photo(FRAMES[n], s)
+            self.images[(n, -1)] = frame_to_photo(FRAMES[n], s, flip=True)
+        self.canvas.config(width=self.cw, height=self.ch)
+        self.canvas.delete("all")
+        self.acc_behind = self.acc_front = None
+        self.sprite_item = self.canvas.create_image(
+            self.cw // 2, self.ch, anchor="s",
+            image=self.body_img[getattr(self, "facing", 1)])
+        self.bubble = None
+        self.effects = []
+        self.mouth_item = None
+
     def _place(self):
         self.geometry(f"+{int(self.x - self.cw / 2 + self.sdx)}"
                       f"+{int(self.y - self.ch + getattr(self, '_gait_dy', 0) + self.sdy)}")
+        tag = getattr(self, "nametag", None)
+        if tag is not None:
+            tag.update(self.name, self.x, self.y - self.ch + getattr(self, "_gait_dy", 0))
 
     def feet_to_canvas(self, sx, sy):
         """Convert screen coords to canvas coords."""
         return sx - (self.x - self.cw / 2), sy - (self.y - self.ch)
+
+    def _pet_self(self):
+        """Pet the main pet (used by the name badge's left-click)."""
+        if self.state == "sleep":
+            self.set_state("stretch", "stretch", 1.2)
+            self._say("mrrp?")
+            return
+        self.needs["love"] = min(100.0, self.needs["love"] + 3)
+        for _ in range(2):
+            self._float_icon("heart", dx=random.uniform(-8, 8) * self.scale / 3)
+        if random.random() < 0.5:
+            self._say(self.voice_word())
+            self.play_snd(self.voice())
 
     # ---- needs ----------------------------------------------------------
 
@@ -4094,6 +4266,12 @@ class VCat(tk.Tk):
                         pass
                 self.attributes("-topmost", True)
                 self.lift()
+                # the box she's sitting in is the one decor that stays IN FRONT
+                if self.perch is not None and self.state in ("perchsit", "perchsleep"):
+                    try:
+                        self.perch.win.lift(self)
+                    except tk.TclError:
+                        pass
                 for pet in ([self.critter, self.toy, self.laser, self.bird]
                             + list(self.animals)):
                     if pet is not None:
@@ -4308,10 +4486,14 @@ class VCat(tk.Tk):
             self.start_fall()
             return
         box = self.perch
-        self.x = min(max(self.x, box.x - box.cw / 2 + 4 * self.scale),
-                     box.x + box.cw / 2 - 4 * self.scale)
+        self.x = min(max(self.x, box.x - box.cw / 2 + 6 * self.scale),
+                     box.x + box.cw / 2 - 6 * self.scale)
         if self.state in ("perchsit", "perchsleep"):
-            self.y = box.top_y()
+            self.y = self.ground()        # stay on the floor inside the box
+            try:
+                box.win.lift(self)        # keep the box drawn in front of her
+            except tk.TclError:
+                pass
 
     def windows(self):
         now = time.monotonic()
@@ -4599,7 +4781,8 @@ class VCat(tk.Tk):
             self.facing = 1 if decor.x >= self.x else -1
             self.set_state("plantbat", "bat", random.uniform(2, 4))
         elif k == "box":
-            self.start_jump(decor.x, decor.top_y(), anim="pounce", dur=0.45)
+            # hop down INTO the open box (lands on the floor; box drawn in front)
+            self.start_jump(decor.x, self.ground(), anim="pounce", dur=0.45)
             self.after_jump = ("box_land", decor)
 
     def st_munch(self, dt):
@@ -4754,6 +4937,10 @@ class VCat(tk.Tk):
         box = self.perch
         self.perch = None
         if box is not None:
+            try:
+                self.lift(box.win)     # raise the cat back above the box she just left
+            except tk.TclError:
+                pass
             side = random.choice((-1, 1))
             x1 = box.x + side * (box.cw / 2 + 30 * self.scale)
             x1 = min(max(x1, self.wa[0] + 40), self.wa[2] - 40)
@@ -5196,9 +5383,9 @@ class VCat(tk.Tk):
                     self.perch = box
                     self.surface_hwnd = None
                     self.surface_last = None
-                    self.y = box.top_y()
-                    self.x = min(max(self.x, box.x - box.cw / 2 + 4 * self.scale),
-                                 box.x + box.cw / 2 - 4 * self.scale)
+                    self.y = self.ground()        # sit on the floor, inside the box
+                    self.x = min(max(self.x, box.x - box.cw / 2 + 6 * self.scale),
+                                 box.x + box.cw / 2 - 6 * self.scale)
                     self.needs["love"] = min(100.0, self.needs["love"] + 1)
                     self.play_snd("chirp")
                     self.set_state("perchsit", "idle", random.uniform(4, 9))
@@ -5366,19 +5553,22 @@ class VCat(tk.Tk):
         menu.add_cascade(label="🎾  Play", menu=play)
 
         look = tk.Menu(menu, tearoff=0)
-        cos = tk.Menu(look, tearoff=0)
-        labels = {"none": "no costume", "bat": "🦇 batcat", "spider": "🕷 spidercat",
-                  "wizard": "🧙 wizard", "king": "👑 king", "devil": "😈 devil"}
-        for key in ("none", "bat", "spider", "wizard", "king", "devil"):
-            cos.add_command(label=("●  " if self.costume == key else "    ") + labels[key],
-                            command=lambda k=key: self.act_costume(k))
-        look.add_cascade(label="🎭  Costume", menu=cos)
-        fur = tk.Menu(look, tearoff=0)
-        cur = self.persist.get("color", "black")
-        for key in ("black", "ginger", "gray", "snow", "choco"):
-            fur.add_command(label=("●  " if cur == key else "    ") + key,
-                            command=lambda k=key: self.act_color(k))
-        look.add_cascade(label="🎨  Fur", menu=fur)
+        # costumes & fur color only apply to the frame-based cat, not the
+        # fixed pixel-art bodies of the other species
+        if not getattr(self, "use_sprite", False):
+            cos = tk.Menu(look, tearoff=0)
+            labels = {"none": "no costume", "bat": "🦇 batcat", "spider": "🕷 spidercat",
+                      "wizard": "🧙 wizard", "king": "👑 king", "devil": "😈 devil"}
+            for key in ("none", "bat", "spider", "wizard", "king", "devil"):
+                cos.add_command(label=("●  " if self.costume == key else "    ") + labels[key],
+                                command=lambda k=key: self.act_costume(k))
+            look.add_cascade(label="🎭  Costume", menu=cos)
+            fur = tk.Menu(look, tearoff=0)
+            cur = self.persist.get("color", "black")
+            for key in ("black", "ginger", "gray", "snow", "choco"):
+                fur.add_command(label=("●  " if cur == key else "    ") + key,
+                                command=lambda k=key: self.act_color(k))
+            look.add_cascade(label="🎨  Fur", menu=fur)
         size = tk.Menu(look, tearoff=0)
         for label, s in (("smol", 2), ("normal", 3), ("big", 4),
                          ("huge", 6), ("giant", 8)):
@@ -6019,6 +6209,29 @@ class VCat(tk.Tk):
     # ---- drawing -----------------------------------------------------------------------
 
     def _draw(self):
+        if getattr(self, "use_sprite", False):
+            # show the egg for the whole egg stage (incl. while dragged/falling),
+            # not just the egg/hatch states; the body sprite is for after hatching
+            if self.state in ("egg", "hatch") or self.stage == "egg":
+                anim = self.anim if self.anim in ("egg", "hatch") else "egg"
+                frames, fps, loop = ANIMS.get(anim, ANIMS["egg"])
+                idx = int(self.state_t * fps)
+                idx = idx % len(frames) if loop else min(idx, len(frames) - 1)
+                self._gait_dy = 0.0
+                self.canvas.itemconfig(self.sprite_item,
+                                       image=self.images[(frames[idx], self.facing)])
+                self._place()
+                return
+            self._gait_dy = 0.0
+            if (self.surface_hwnd is None and self.perch is None
+                    and self.anim in ("walk", "run")):
+                gdy, _ = gait_render(self.species, self.anim, self.state_t, self.scale, True)
+                if abs(gdy) < 0.01:
+                    gdy = -abs(math.sin(self.state_t * 9)) * 1.5 * self.scale
+                self._gait_dy = gdy
+            self.canvas.itemconfig(self.sprite_item, image=self.body_img[self.facing])
+            self._place()
+            return
         # gait: a frog/bunny hops, a penguin waddles — but only on flat ground,
         # never while perched/climbing/airborne (would detach from the surface)
         anim = self.anim
@@ -6171,6 +6384,16 @@ def render_sheet(path="sprite_sheet.png", px=5):
 def main():
     if "--sheet" in sys.argv:
         render_sheet()
+        return
+    if "--selfcheck" in sys.argv:
+        # write a status file so we can confirm a packaged build bundled the AI art
+        try:
+            os.makedirs(SAVE_DIR, exist_ok=True)
+            with open(os.path.join(SAVE_DIR, "selfcheck.txt"), "w", encoding="utf-8") as f:
+                f.write(f"VEG_ART={ {k: len(v) for k, v in VEG_ART.items()} }\n")
+                f.write(f"FURN_ART={sorted(FURN_ART)}\n")
+        except Exception as e:
+            log_error(f"selfcheck: {e!r}")
         return
     if acquire_single_instance() is None:
         ctypes.windll.user32.MessageBoxW(0, "vCat is already running! 🐈‍⬛",
