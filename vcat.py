@@ -1609,6 +1609,19 @@ def traits_of(species):
     return SPECIES_TRAITS.get(species, set())
 
 
+# what decor each species finds comforting — place it nearby to raise Comfort
+SPECIES_COMFORT = {
+    "cat": {"box", "bed"}, "dog": {"bed"}, "fox": {"bush"}, "dragon": {"tree"},
+    "bear": {"tree"}, "panda": {"tree"}, "cow": {"grass"}, "goat": {"grass"},
+    "chick": {"grass"}, "bunny": {"flower", "grass"}, "pig": {"bush"},
+    "hamster": {"box"}, "frog": {"pond"}, "penguin": {"pond"},
+}
+
+
+def comfort_decor(species):
+    return SPECIES_COMFORT.get(species, set())
+
+
 def gait_of(species):
     return SPECIES_GAIT.get(species, "walk")
 
@@ -2113,6 +2126,7 @@ def load_state():
     state = {"hunger": 90.0, "thirst": 90.0, "love": 80.0, "scale": 3, "ts": time.time(),
              "color": "black", "sounds": True, "kitten": False, "kitten_color": "",
              "decor": [], "name": "", "kitten_name": "", "costume": "none",
+             "energy": 85.0, "comfort": 70.0, "health": 90.0,
              "potty": 80.0, "messes": [], "animals": [],
              "species": "cat", "created_ts": None, "immortal": False}
     try:
@@ -2192,6 +2206,9 @@ def load_state():
         if (isinstance(data.get("potty"), (int, float))
                 and not isinstance(data.get("potty"), bool)):
             state["potty"] = float(min(100, max(0, data["potty"])))
+        for k in ("energy", "comfort", "health"):
+            if isinstance(data.get(k), (int, float)) and not isinstance(data.get(k), bool):
+                state[k] = float(min(100, max(0, data[k])))
         if data.get("species") in SPECIES:
             state["species"] = data["species"]
         state["immortal"] = bool(data.get("immortal", False))
@@ -2806,6 +2823,10 @@ class Animal:
         self.birth = float(birth) if birth is not None else time.time()
         self.lifespan = float(lifespan) if lifespan else random.uniform(900, 1500)
         self.hunger = float(hunger) if hunger is not None else random.uniform(55, 90)
+        self.energy = random.uniform(70, 95)
+        self.comfort = random.uniform(55, 80)
+        self.health = 92.0
+        self.sick = False
         self.alive = True
         self.dying = False
         self.dead_t = 0.0
@@ -2948,6 +2969,7 @@ class Animal:
         g = a.ground()
         if self.breed_cd > 0:
             self.breed_cd -= dt
+        self._update_health(dt)
 
         if self.stage() != self._last_stage:
             self._build()
@@ -3188,6 +3210,33 @@ class Animal:
 
     def _clamp(self):
         self.x = min(max(self.x, self.app.wa[0] + 12), self.app.wa[2] - 12)
+
+    def _update_health(self, dt):
+        """Companion energy / comfort / overall health (a lighter version of the
+        main pet's). Recovers with food + a comforting home."""
+        if self.state in ("sleep", "lie"):
+            self.energy = min(100.0, self.energy + dt * (100 / 180))
+        else:
+            act = self.state in ("run", "play", "walk")
+            self.energy = max(0.0, self.energy - dt * (100 / 600) * (2.5 if act else 1.0))
+        prefs = comfort_decor(self.species)
+        owns = [d for d in self.app.decor if d.kind in prefs]
+        if any(abs(d.x - self.x) < 60 * self.scale for d in owns):
+            ctgt = 90.0
+        elif owns:
+            ctgt = 62.0
+        else:
+            ctgt = 45.0
+        self.comfort += (ctgt - self.comfort) * min(1.0, dt / 90.0)
+        self.comfort = max(0.0, min(100.0, self.comfort))
+        avg = (self.hunger + self.energy + self.comfort) / 3.0
+        target = avg if self.hunger > 15 else min(avg, self.hunger + 8)
+        self.health += (target - self.health) * min(1.0, dt / 240.0)
+        self.health = max(0.0, min(100.0, self.health))
+        if self.health < 25:
+            self.sick = True
+        elif self.health > 45:
+            self.sick = False
 
     def _die(self, eaten=False):
         if self.dying:
@@ -3708,6 +3757,10 @@ class VCat(tk.Tk):
         super().__init__()
         self.persist = state
         self.needs = {k: state[k] for k in ("hunger", "thirst", "love")}
+        self.needs["energy"] = float(state.get("energy", 85.0))
+        self.needs["comfort"] = float(state.get("comfort", 70.0))
+        self.health = float(state.get("health", 90.0))
+        self.sick = False
         self.potty = float(state.get("potty", 80.0))
         self.name = state.get("name", "")
         # ---- lifecycle / species ----
@@ -3944,6 +3997,7 @@ class VCat(tk.Tk):
             self._say("mrrp?")
             return
         self.needs["love"] = min(100.0, self.needs["love"] + 3)
+        self.needs["comfort"] = min(100.0, self.needs["comfort"] + 4)
         for _ in range(2):
             self._float_icon("heart", dx=random.uniform(-8, 8) * self.scale / 3)
         if random.random() < 0.5:
@@ -3952,12 +4006,28 @@ class VCat(tk.Tk):
 
     # ---- needs ----------------------------------------------------------
 
+    # the needs you can directly satisfy (feed/water/pet) — what she begs for
+    BEG_NEEDS = ("hunger", "thirst", "love")
+
     def need_low(self):
-        worst = min(self.needs, key=self.needs.get)
-        return worst if self.needs[worst] < 35 else None
+        core = {k: self.needs[k] for k in self.BEG_NEEDS}
+        worst = min(core, key=core.get)
+        return worst if core[worst] < 35 else None
 
     def is_sad(self):
-        return min(self.needs.values()) < 12
+        return self.sick or min(self.needs[k] for k in self.BEG_NEEDS) < 12
+
+    def _comfort_target(self):
+        """Where Comfort drifts: high near a species' favourite decor, low in a mess."""
+        prefs = comfort_decor(self.species)
+        owns = [d for d in self.decor if d.kind in prefs]
+        if any(abs(d.x - self.x) < 60 * self.scale for d in owns):
+            base = 92.0
+        elif owns:
+            base = 74.0
+        else:
+            base = 52.0
+        return max(5.0, base - min(len(self.messes), 5) * 7.0)
 
     def update_needs(self, dt):
         for k, rate in DECAY.items():
@@ -3970,6 +4040,27 @@ class VCat(tk.Tk):
         if self.messes:
             self.needs["love"] = max(0.0, self.needs["love"]
                                      - min(len(self.messes), 6) * 0.05 * dt)
+        # energy: refills while resting, drains (faster when active)
+        if self.state in ("sleep", "perchsleep", "bedsleep"):
+            self.needs["energy"] = min(100.0, self.needs["energy"] + (100 / (2.0 * 3600)) * dt)
+        else:
+            act = self.state in ("zoomies", "run", "chase", "hunt", "hunt_stalk",
+                                 "toy_chase", "laser", "wallclimb", "catch")
+            drain = (100 / (11 * 3600)) * (3.5 if act else 1.0)
+            self.needs["energy"] = max(0.0, self.needs["energy"] - drain * dt)
+        # comfort eases toward its target (favourite decor nearby / clean home)
+        self.needs["comfort"] += (self._comfort_target() - self.needs["comfort"]) * min(1.0, dt / 90.0)
+        self.needs["comfort"] = max(0.0, min(100.0, self.needs["comfort"]))
+        # overall health tracks wellbeing; low food/water drags it down faster
+        core = min(self.needs["hunger"], self.needs["thirst"])
+        avg = sum(self.needs[k] for k in ("hunger", "thirst", "love", "energy", "comfort")) / 5.0
+        target = avg if core > 15 else min(avg, core + 8)
+        self.health += (target - self.health) * min(1.0, dt / 240.0)
+        self.health = max(0.0, min(100.0, self.health))
+        if self.health < 25:            # gets sick; recovers with care (hysteresis)
+            self.sick = True
+        elif self.health > 45:
+            self.sick = False
 
     # ---- lifecycle ------------------------------------------------------
 
@@ -4070,7 +4161,10 @@ class VCat(tk.Tk):
         self.created_ts = time.time()
         self.name = ""
         self.costume = "none"
-        self.needs = {"hunger": 85.0, "thirst": 85.0, "love": 80.0}
+        self.needs = {"hunger": 85.0, "thirst": 85.0, "love": 80.0,
+                      "energy": 85.0, "comfort": 70.0}
+        self.health = 95.0
+        self.sick = False
         self.potty = 85.0
         self.perch = None
         self.surface_hwnd = self.surface_last = None
@@ -4311,6 +4405,7 @@ class VCat(tk.Tk):
         self.last_save = time.monotonic()
         self.persist.update(
             self.needs, scale=self.base_scale,    # the user's Size tier, not age scale
+            health=round(self.health, 1),
             potty=self.potty, name=self.name, costume=self.costume,
             species=self.species, created_ts=self.created_ts, immortal=self.immortal,
             kitten=False,
@@ -4558,6 +4653,8 @@ class VCat(tk.Tk):
         young, old = self._young(), self._old()
         # babies and elders nap far more
         sleepw = (3.5 if (young or old) else 0.9) * (2.2 if night else 1.0)
+        if self.needs["energy"] < 30 or self.sick:   # tired or unwell -> rest more
+            sleepw *= 2.4
         options = [("idle", 3.0), ("wander", 3.0)]
         if not on_window:
             options += [("lie", 2.0 if old else 1.2), ("groom", 1.6)]
@@ -5521,16 +5618,20 @@ class VCat(tk.Tk):
 
         spname = SPECIES[self.species]["name"]
         who = self.name or spname
+        health_tag = "  🤒 sick" if self.sick else ""
         menu.add_command(label=f"{SPECIES_EMOJI.get(self.species, '🐈')}  {who}  ·  {spname}",
                          state="disabled")
         menu.add_command(
             label=f"     {STAGE_LABEL.get(self.stage, self.stage)}  ·  {self.age_text()}",
             state="disabled")
-        menu.add_command(label=f"  food   {bar(self.needs['hunger'])}", state="disabled")
-        menu.add_command(label=f"  water  {bar(self.needs['thirst'])}", state="disabled")
-        menu.add_command(label=f"  love   {bar(self.needs['love'])}", state="disabled")
+        menu.add_command(label=f"  health  {bar(self.health)}{health_tag}", state="disabled")
+        menu.add_command(label=f"  food    {bar(self.needs['hunger'])}", state="disabled")
+        menu.add_command(label=f"  water   {bar(self.needs['thirst'])}", state="disabled")
+        menu.add_command(label=f"  energy  {bar(self.needs['energy'])}", state="disabled")
+        menu.add_command(label=f"  comfort {bar(self.needs['comfort'])}", state="disabled")
+        menu.add_command(label=f"  love    {bar(self.needs['love'])}", state="disabled")
         if self.can("litter"):
-            menu.add_command(label=f"  potty  {bar(self.potty)}", state="disabled")
+            menu.add_command(label=f"  potty   {bar(self.potty)}", state="disabled")
         menu.add_separator()
         feed_icon = "🥬" if SPECIES_DIET.get(self.species) == "herb" else "🐟"
         menu.add_command(label=f"{feed_icon}  Feed", command=self.act_feed)
@@ -5988,10 +6089,17 @@ class VCat(tk.Tk):
         sub = f"{diet_icon} {spn} · {animal.stage()}"
         if tags:
             sub += " · " + ", ".join(tags)
+        if animal.sick:
+            sub += " · 🤒 sick"
         m.add_command(label="   " + sub, state="disabled")
-        hb = max(0, min(100, int(animal.hunger)))
-        bar = "█" * (hb // 10) + "░" * (10 - hb // 10)
-        m.add_command(label=f"   hunger {bar} {hb}%", state="disabled")
+
+        def bar(v):
+            v = max(0, min(100, int(v)))
+            return "█" * (v // 10) + "░" * (10 - v // 10)
+        m.add_command(label=f"   health  {bar(animal.health)}", state="disabled")
+        m.add_command(label=f"   food    {bar(animal.hunger)}", state="disabled")
+        m.add_command(label=f"   energy  {bar(animal.energy)}", state="disabled")
+        m.add_command(label=f"   comfort {bar(animal.comfort)}", state="disabled")
         m.add_separator()
 
         # ---- always-available care ----
@@ -6047,6 +6155,7 @@ class VCat(tk.Tk):
     def _pet_animal(self, animal):
         if animal in self.animals and animal.alive and not animal.dying:
             animal._heart()
+            animal.comfort = min(100.0, animal.comfort + 6)
             if animal.state not in ("dangle", "fall"):
                 animal.set("look", "blink", 1.2)
             self.play_snd(animal.voice())
@@ -6054,6 +6163,7 @@ class VCat(tk.Tk):
     def _feed_animal(self, animal):
         if animal in self.animals and animal.alive:
             animal.hunger = 100.0
+            animal.comfort = min(100.0, animal.comfort + 4)
             animal._heart()
 
     def _urge_animal(self, animal, urge, secs=14.0):
